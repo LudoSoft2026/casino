@@ -1,7 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import authRoutes from './modules/auth/auth.routes';
+import apuestasRoutes from './modules/apuestas/apuestas.routes';
 import { errorMiddleware } from './middlewares/error.middleware';
+
 //Prueba
 //import { authenticateToken as authMiddleware } from './middlewares/auth.middleware';
 
@@ -9,17 +11,22 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use('/api/auth', authRoutes);
 
-// Ruta de prueba
+// Rutas
+app.use('/api/auth', authRoutes);
+app.use('/api/apuestas', apuestasRoutes);
+
+// Health check
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', message: 'Servidor funcionando' });
 });
+
 /*
-app.get('/api/protegida', authMiddleware, (_req, res) => {
+app.get('/api/protegida', authenticateToken, (_req, res) => {
   res.json({ message: 'Esta es una ruta protegida' });
 });
 */
+
 // Middleware de manejo de errores
 app.use(errorMiddleware);
 
