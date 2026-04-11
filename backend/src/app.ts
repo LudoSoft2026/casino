@@ -3,6 +3,7 @@ import cors from 'cors';
 import authRoutes from './modules/auth/auth.routes';
 import apuestasRoutes from './modules/apuestas/apuestas.routes';
 import participacionesRoutes from './modules/participaciones/participaciones.routes';
+import resultadosRoutes from './modules/resultados/resultados.routes';
 import { errorMiddleware } from './middlewares/error.middleware';
 
 const app = express();
@@ -14,6 +15,7 @@ app.use(express.json());
 app.use('/api/participaciones', participacionesRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/apuestas', apuestasRoutes);
+app.use('/api/resultados', resultadosRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {

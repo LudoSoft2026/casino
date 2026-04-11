@@ -3,7 +3,7 @@ import { CrearApuestaDTO } from './apuestas.schema';
 
 export const crearApuesta = async (creadorId: string, data: CrearApuestaDTO) => {
     const { rows } = await pool.query(
-        'CALL SP_CREAR_APUESTA($1, $2, $3, $4, $5, $6, $7,NULL, NULL, $8)',
+        `CALL SP_CREAR_APUESTA($1, $2, $3, $4, $5, $6, $7,NULL, NULL, $8)`,
         [
             creadorId,
             data.titulo,
@@ -19,13 +19,13 @@ export const crearApuesta = async (creadorId: string, data: CrearApuestaDTO) => 
 };
 
 export const listarApuestas = async () => {
-    const { rows } = await pool.query('SELECT * FROM V_APUESTAS_ACTIVAS ORDER BY es_tendencia DESC, fecha_creacion DESC');
+    const { rows } = await pool.query(`SELECT * FROM V_APUESTAS_ACTIVAS ORDER BY es_tendencia DESC, fecha_creacion DESC`);
     return rows;
 };
 
 export const obtenerApuesta = async (id: string) => {
     const { rows } = await pool.query(
-        'SELECT * FROM v_apuestas_activas WHERE id: $1',
+        `SELECT * FROM v_apuestas_activas WHERE id = $1`,
         [id]
     );
     return rows[0] ?? null;
@@ -33,14 +33,14 @@ export const obtenerApuesta = async (id: string) => {
 
 export const previewApuesta = async (opcionId: string, monto: number) =>   {
     const { rows } = await pool.query(
-        'SELECT * FROM fn_preview_apuesta($1, $2)',
+        `SELECT * FROM fn_preview_apuesta($1, $2)`,
         [monto, opcionId]
     );
     return rows[0] ?? null;
 };
 
 export const cerrarApuestasExpiradas = async () => {
-    const { rows } = await pool.query('CALL sp_cerrar_apuestas_expiradas(NULL)');
+    const { rows } = await pool.query(`CALL sp_cerrar_apuestas_expiradas(NULL)`);
     return rows[0] as { p_total_cerradas: number };
 };
     
