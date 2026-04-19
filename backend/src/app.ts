@@ -6,6 +6,7 @@ import participacionesRoutes from './modules/participaciones/participaciones.rou
 import resultadosRoutes from './modules/resultados/resultados.routes';
 import saldosRoutes from './modules/saldos/saldos.routes';
 import retirosRoutes from './modules/retiros/retiros.routes';
+import documentosRoutes from './modules/documentos/documentos.routes';
 import { errorMiddleware } from './middlewares/error.middleware';
 
 const app = express();
@@ -20,6 +21,7 @@ app.use('/api/apuestas', apuestasRoutes);
 app.use('/api/resultados', resultadosRoutes);
 app.use('/api/saldos', saldosRoutes);
 app.use('/api/retiros', retirosRoutes);
+app.use('/api/documentos', documentosRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {
