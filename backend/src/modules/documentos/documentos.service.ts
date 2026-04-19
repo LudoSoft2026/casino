@@ -24,9 +24,11 @@ export const subirDocumento = async (
         );
     }  else { 
         await pool.query(
-            `INSERT INTO documentos_identidad (usuario_id, numero_documento, tipo_documento, ruta_archivo, tipo_mime, tamano_bytes, estado) VALUES ($1, $2, $3, $4, $5, $6)`,
+            `INSERT INTO documentos_identidad 
+            (usuario_id, numero_documento, tipo_documento, ruta_archivo, tipo_mime, tamano_bytes) 
+            VALUES ($1, $2, $3, $4, $5, $6)`,
             [usuarioId, numeroDocumento, tipoDocumento, rutaArchivo, tipoMime, tamañoBytes]
-        );
+    );
     }
 
     //Cambiar estado a pendiente
@@ -40,14 +42,14 @@ export const subirDocumento = async (
 
 export const revisarDocuemento = async (adminId: string, documentoId: string, aprobar: boolean, motivoRechazo?: string) => {
     const { rows } = await pool.query(
-        'SELECT sp_revisar_documento($1, $2, $3, NULL, $4)',
+        'CALL sp_revisar_documento($1, $2, $3, NULL, $4)',
         [adminId, documentoId, aprobar, motivoRechazo ?? null]
     );
     return rows[0] as { p_mensaje: string };
 };
 
 export const listarPendientes  = async () => {
-    const { rows } = await pool.query(`SELECT * FROM v_documentos_identidad`);
+    const { rows } = await pool.query(`SELECT * FROM v_documentos_pendientes`);
     return rows;
 };
 

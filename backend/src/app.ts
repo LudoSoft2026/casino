@@ -8,6 +8,7 @@ import saldosRoutes from './modules/saldos/saldos.routes';
 import retirosRoutes from './modules/retiros/retiros.routes';
 import documentosRoutes from './modules/documentos/documentos.routes';
 import { errorMiddleware } from './middlewares/error.middleware';
+import helmet from 'helmet';
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.use('/api/resultados', resultadosRoutes);
 app.use('/api/saldos', saldosRoutes);
 app.use('/api/retiros', retirosRoutes);
 app.use('/api/documentos', documentosRoutes);
+app.use(helmet());
 
 // Health check
 app.get('/health', (_req, res) => {
