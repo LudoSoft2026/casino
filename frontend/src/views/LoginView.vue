@@ -31,7 +31,7 @@ const login = async () => {
     }
 
     auth.setToken(data.token)
-    auth.usuario = data.usuario
+    auth.setUsuario(data.usuario)
     router.push('/apuestas')
   } catch {
     error.value = 'Error de conexión. Intenta nuevamente.'
