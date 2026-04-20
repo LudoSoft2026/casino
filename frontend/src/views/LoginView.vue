@@ -49,7 +49,7 @@ const login = async () => {
         <v-card elevation="8" rounded="lg">
           <v-card-title class="text-center pa-6">
             <v-icon size="48" color="primary">mdi-cards-playing</v-icon>
-            <div class="text-h5 font-weight-bold mt-2">Casino App</div>
+            <div class="text-h5 font-weight-bold mt-2">GoldenAce</div>
             <div class="text-subtitle-2 text-medium-emphasis">Inicia sesión para continuar</div>
           </v-card-title>
 
