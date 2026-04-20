@@ -24,7 +24,7 @@ const login = async () => {
     })
 
     const data = await res.json()
-
+    console.log('Respuesta del backend:', data)
     if (!res.ok) {
       error.value = data.mensaje || 'Credenciales inválidas.'
       return

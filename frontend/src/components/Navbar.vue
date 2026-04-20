@@ -15,7 +15,7 @@ const obtenerSaldo = async () => {
   loading.value = true
   const res  = await apiFetch('/api/saldos')
   const data = await res.json()
-  saldo.value = data.saldo?.saldo_disponible ?? 0
+  saldo.value = data.saldo_disponible ?? 0
   loading.value = false
 }
 
