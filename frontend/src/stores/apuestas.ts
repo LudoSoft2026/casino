@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import { useAuthStore } from './auth'
+import { apiFetch } from '@/config/api'
 
 export interface Opcion {
   id:                  string
@@ -36,7 +36,7 @@ export const useApuestasStore = defineStore('apuestas', () => {
     loading.value = true
     error.value   = ''
     try {
-      const res  = await fetch('http://localhost:3000/api/apuestas')
+      const res  = await apiFetch('/api/apuestas')
       const data = await res.json()
       apuestas.value = data.apuestas
     } catch {
@@ -55,27 +55,27 @@ export const useApuestasStore = defineStore('apuestas', () => {
     monto_maximo:       number | null
     fecha_finalizacion: string
   }) => {
-    const auth = useAuthStore()
-    const res  = await fetch('http://localhost:3000/api/apuestas', {
-      method:  'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'Authorization': `Bearer ${auth.token}`,
-      },
-      body: JSON.stringify(form),
+    const body = {
+      titulo:             form.titulo,
+      descripcion:        form.descripcion,
+      opciones:           form.opciones,
+      probabilidades:     form.probabilidades,
+      monto_minimo:       form.monto_minimo,
+      fecha_finalizacion: form.fecha_finalizacion,
+      ...(form.monto_maximo ? { monto_maximo: form.monto_maximo } : {}),
+    }
+
+    const res = await apiFetch('/api/apuestas', {
+      method: 'POST',
+      body:   JSON.stringify(body),
     })
     return await res.json()
   }
 
   const participar = async (apuestaId: string, opcionId: string, monto: number) => {
-    const auth = useAuthStore()
-    const res  = await fetch('http://localhost:3000/api/participaciones', {
-      method:  'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'Authorization': `Bearer ${auth.token}`,
-      },
-      body: JSON.stringify({
+    const res = await apiFetch('/api/participaciones', {
+      method: 'POST',
+      body:   JSON.stringify({
         apuesta_id: apuestaId,
         opcion_id:  opcionId,
         monto,
