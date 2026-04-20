@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useApuestasStore, type Apuesta } from '@/stores/apuestas'
+import { useAuthStore } from '@/stores/auth'
 import { io } from 'socket.io-client'
 
 const apuestasStore = useApuestasStore()
+const auth          = useAuthStore()
 
-const dialogApostar      = ref(false)
+const dialogApostar       = ref(false)
 const apuestaSeleccionada = ref<Apuesta | null>(null)
 const opcionSeleccionada  = ref('')
 const montoApostar        = ref(0)
@@ -13,30 +15,36 @@ const loadingApostar      = ref(false)
 const mensajeApostar      = ref('')
 const errorApostar        = ref('')
 
-// WebSocket
-const socket = io('http://localhost:3000')
+const dialogProponer      = ref(false)
+const apuestaProponer     = ref<Apuesta | null>(null)
+const opcionGanadora      = ref('')
+const mensajeProponer     = ref('')
+const errorProponer       = ref('')
+const loadingProponer     = ref(false)
 
-// Intervalo para actualizar contadores cada segundo
+const contadores = ref<Record<string, number>>({})
+const socket     = io('http://localhost:3000')
 let intervalo: ReturnType<typeof setInterval>
 
 onMounted(async () => {
   await apuestasStore.listar()
+  await apuestasStore.cargarMisApuestas()
 
-  // Actualizar segundos restantes cada segundo
+  apuestasStore.apuestas.forEach(a => {
+    contadores.value[a.id] = a.segundos_restantes
+  })
+
   intervalo = setInterval(() => {
-    apuestasStore.apuestas.forEach(a => {
-      if (a.segundos_restantes > 0) {
-        a.segundos_restantes--
-        a.en_periodo_bloqueo = a.segundos_restantes <= 30
-      }
+    Object.keys(contadores.value).forEach(id => {
+      if (contadores.value[id] > 0) contadores.value[id]--
     })
-    // Eliminar apuestas expiradas
-    apuestasStore.apuestas = apuestasStore.apuestas.filter(a => a.segundos_restantes > 0)
   }, 1000)
 
-  // WebSocket — actualizar participantes en tiempo real
-    socket.on('apuesta:actualizada', async () => {
+  socket.on('apuesta:actualizada', async () => {
     await apuestasStore.listar()
+    apuestasStore.apuestas.forEach(a => {
+      contadores.value[a.id] = a.segundos_restantes
+    })
   })
 })
 
@@ -44,6 +52,10 @@ onUnmounted(() => {
   clearInterval(intervalo)
   socket.disconnect()
 })
+
+const getSegundos  = (id: string) => contadores.value[id] ?? 0
+const getBloqueada = (id: string) => getSegundos(id) <= 30
+const esMiApuesta  = (id: string) => apuestasStore.misApuestas.some(a => a.id === id)
 
 const abrirDialogo = (apuesta: Apuesta) => {
   apuestaSeleccionada.value = apuesta
@@ -76,6 +88,32 @@ const apostar = async () => {
   }
 
   loadingApostar.value = false
+}
+
+const abrirDialogoProponer = (apuesta: Apuesta) => {
+  apuestaProponer.value = apuesta
+  opcionGanadora.value  = ''
+  mensajeProponer.value = ''
+  errorProponer.value   = ''
+  dialogProponer.value  = true
+}
+
+const proponer = async () => {
+  if (!opcionGanadora.value) {
+    errorProponer.value = 'Selecciona la opción ganadora.'
+    return
+  }
+  loadingProponer.value = true
+  const result = await apuestasStore.proponerResultado(
+    apuestaProponer.value!.id,
+    opcionGanadora.value
+  )
+  loadingProponer.value = false
+  if (result.resultadoId) {
+    mensajeProponer.value = result.mensaje
+  } else {
+    errorProponer.value = result.mensaje || 'Error al proponer resultado.'
+  }
 }
 
 const formatearTiempo = (segundos: number) => {
@@ -131,7 +169,6 @@ const formatearTiempo = (segundos: number) => {
       >
         <v-card elevation="4" rounded="lg" height="100%">
 
-          <!-- Badge tendencia -->
           <v-card-title class="pb-1">
             <v-chip v-if="apuesta.es_tendencia" color="orange" size="small" class="mr-2">
               <v-icon start>mdi-fire</v-icon> Tendencia
@@ -144,7 +181,6 @@ const formatearTiempo = (segundos: number) => {
           </v-card-subtitle>
 
           <v-card-text>
-            <!-- Info -->
             <v-row density="comfortable">
               <v-col cols="6">
                 <v-icon size="16" class="mr-1">mdi-account-group</v-icon>
@@ -156,17 +192,15 @@ const formatearTiempo = (segundos: number) => {
               </v-col>
             </v-row>
 
-            <!-- Tiempo restante -->
             <v-chip
-              :color="apuesta.en_periodo_bloqueo ? 'error' : 'success'"
+              :color="getBloqueada(apuesta.id) ? 'error' : 'success'"
               size="small"
               class="mt-2"
             >
               <v-icon start>mdi-clock</v-icon>
-              {{ formatearTiempo(apuesta.segundos_restantes) }}
+              {{ formatearTiempo(getSegundos(apuesta.id)) }}
             </v-chip>
 
-            <!-- Opciones -->
             <div class="mt-3">
               <div
                 v-for="opcion in apuesta.opciones"
@@ -179,14 +213,23 @@ const formatearTiempo = (segundos: number) => {
             </div>
           </v-card-text>
 
-          <v-card-actions>
+          <v-card-actions class="flex-column pa-3 ga-2">
             <v-btn
               block
               color="primary"
-              :disabled="apuesta.en_periodo_bloqueo"
+              :disabled="getBloqueada(apuesta.id)"
               @click="abrirDialogo(apuesta)"
             >
-              {{ apuesta.en_periodo_bloqueo ? 'Bloqueada' : 'Apostar' }}
+              {{ getBloqueada(apuesta.id) ? 'Bloqueada' : 'Apostar' }}
+            </v-btn>
+            <v-btn
+              v-if="esMiApuesta(apuesta.id)"
+              block
+              color="warning"
+              @click="abrirDialogoProponer(apuesta)"
+            >
+              <v-icon start>mdi-flag-checkered</v-icon>
+              Proponer resultado
             </v-btn>
           </v-card-actions>
 
@@ -198,7 +241,6 @@ const formatearTiempo = (segundos: number) => {
     <v-dialog v-model="dialogApostar" max-width="500">
       <v-card v-if="apuestaSeleccionada" rounded="lg">
         <v-card-title>{{ apuestaSeleccionada.titulo }}</v-card-title>
-
         <v-card-text>
           <v-alert v-if="mensajeApostar" type="success" variant="tonal" class="mb-4">
             {{ mensajeApostar }}
@@ -206,7 +248,6 @@ const formatearTiempo = (segundos: number) => {
           <v-alert v-if="errorApostar" type="error" variant="tonal" class="mb-4">
             {{ errorApostar }}
           </v-alert>
-
           <div class="text-subtitle-2 mb-2">Selecciona una opción:</div>
           <v-radio-group v-model="opcionSeleccionada">
             <v-radio
@@ -216,7 +257,6 @@ const formatearTiempo = (segundos: number) => {
               :value="opcion.id"
             />
           </v-radio-group>
-
           <v-text-field
             v-model.number="montoApostar"
             label="Monto a apostar"
@@ -226,7 +266,6 @@ const formatearTiempo = (segundos: number) => {
             :min="apuestaSeleccionada.monto_minimo"
             class="mt-2"
           />
-
           <v-alert type="info" variant="tonal" density="compact" class="mt-2">
             Ganancia si ganas: ${{ opcionSeleccionada
               ? (montoApostar * (apuestaSeleccionada.opciones.find(o => o.id === opcionSeleccionada)?.cuota ?? 1)).toFixed(2)
@@ -234,17 +273,42 @@ const formatearTiempo = (segundos: number) => {
             }}
           </v-alert>
         </v-card-text>
-
         <v-card-actions>
           <v-btn variant="text" @click="dialogApostar = false">Cancelar</v-btn>
           <v-spacer />
-          <v-btn
-            color="primary"
-            :loading="loadingApostar"
-            :disabled="!!mensajeApostar"
-            @click="apostar"
-          >
+          <v-btn color="primary" :loading="loadingApostar" :disabled="!!mensajeApostar" @click="apostar">
             Confirmar apuesta
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Dialog proponer resultado -->
+    <v-dialog v-model="dialogProponer" max-width="500">
+      <v-card v-if="apuestaProponer" rounded="lg">
+        <v-card-title>Proponer resultado</v-card-title>
+        <v-card-text>
+          <v-alert v-if="mensajeProponer" type="success" variant="tonal" class="mb-4">
+            {{ mensajeProponer }}
+          </v-alert>
+          <v-alert v-if="errorProponer" type="error" variant="tonal" class="mb-4">
+            {{ errorProponer }}
+          </v-alert>
+          <div class="text-subtitle-2 mb-2">Selecciona la opción ganadora:</div>
+          <v-radio-group v-model="opcionGanadora">
+            <v-radio
+              v-for="opcion in apuestaProponer.opciones"
+              :key="opcion.id"
+              :label="opcion.descripcion"
+              :value="opcion.id"
+            />
+          </v-radio-group>
+        </v-card-text>
+        <v-card-actions>
+          <v-btn variant="text" @click="dialogProponer = false">Cancelar</v-btn>
+          <v-spacer />
+          <v-btn color="warning" :loading="loadingProponer" :disabled="!!mensajeProponer" @click="proponer">
+            Proponer
           </v-btn>
         </v-card-actions>
       </v-card>

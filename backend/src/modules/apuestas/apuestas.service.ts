@@ -18,6 +18,17 @@ export const crearApuesta = async (creadorId: string, data: CrearApuestaDTO) => 
     return rows[0] as { p_apuesta_id: string | null; p_mensaje: String};
 };
 
+export const obtenerMisApuestas = async (usuarioId: string) => {
+  const { rows } = await pool.query(
+    `SELECT id, titulo, estado FROM apuestas 
+     WHERE creador_id = $1 
+     AND estado IN ('activa', 'cerrada', 'en_revision')
+     ORDER BY fecha_creacion DESC`,
+    [usuarioId]
+  );
+  return rows;
+};
+
 export const listarApuestas = async () => {
       console.log('⏰ Hora del servidor:', new Date());
     const { rows } = await pool.query(`SELECT * FROM V_APUESTAS_ACTIVAS ORDER BY es_tendencia DESC, fecha_creacion DESC`);

@@ -82,7 +82,12 @@ if (auth.isLoggedIn) {
               title="Cerrar sesión"
               @click="cerrarSesion"
             />
-          </v-list>
+            </v-list>
+            <v-list-item
+              prepend-icon="mdi-history"
+              title="Mi historial"
+            @click="$router.push('/historial')"
+            />
         </v-menu>
 
       </div>

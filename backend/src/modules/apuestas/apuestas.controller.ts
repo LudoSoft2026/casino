@@ -4,7 +4,10 @@ import {
     listarApuestas,
     obtenerApuesta,
     previewApuesta,
+    cerrarApuestasExpiradas,
+    obtenerMisApuestas
 } from "./apuestas.service";
+
 
 export const crear = async (req: Request, res: Response) => {
     const creadorId = req.usuario!.id;
@@ -30,6 +33,12 @@ export const obtener = async (req: Request, res: Response) => {
         return;
     }
     res.json({ apuesta });
+};
+
+export const misApuestas = async (req: Request, res: Response) => {
+  const creadorId = req.usuario!.id;
+  const apuestas  = await obtenerMisApuestas(creadorId);
+  res.json({ apuestas });
 };
 
 export const preview = async (req: Request, res: Response) => {
