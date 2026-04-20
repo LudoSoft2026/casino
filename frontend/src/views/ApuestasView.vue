@@ -5,7 +5,7 @@ import { io } from 'socket.io-client'
 
 const apuestasStore = useApuestasStore()
 
-const dialogApostar     = ref(false)
+const dialogApostar      = ref(false)
 const apuestaSeleccionada = ref<Apuesta | null>(null)
 const opcionSeleccionada  = ref('')
 const montoApostar        = ref(0)
@@ -16,15 +16,32 @@ const errorApostar        = ref('')
 // WebSocket
 const socket = io('http://localhost:3000')
 
+// Intervalo para actualizar contadores cada segundo
+let intervalo: ReturnType<typeof setInterval>
+
 onMounted(async () => {
   await apuestasStore.listar()
 
-  socket.on('apuesta:actualizada', async () => {
+  // Actualizar segundos restantes cada segundo
+  intervalo = setInterval(() => {
+    apuestasStore.apuestas.forEach(a => {
+      if (a.segundos_restantes > 0) {
+        a.segundos_restantes--
+        a.en_periodo_bloqueo = a.segundos_restantes <= 30
+      }
+    })
+    // Eliminar apuestas expiradas
+    apuestasStore.apuestas = apuestasStore.apuestas.filter(a => a.segundos_restantes > 0)
+  }, 1000)
+
+  // WebSocket — actualizar participantes en tiempo real
+    socket.on('apuesta:actualizada', async () => {
     await apuestasStore.listar()
   })
 })
 
 onUnmounted(() => {
+  clearInterval(intervalo)
   socket.disconnect()
 })
 
