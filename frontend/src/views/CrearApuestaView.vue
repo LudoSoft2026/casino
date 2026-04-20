@@ -73,7 +73,7 @@ const crear = async () => {
     probabilidades:     opciones.value.map(o => Number(o.probabilidad)),
     monto_minimo:       form.value.monto_minimo,
     monto_maximo:       form.value.monto_maximo,
-    fecha_finalizacion: new Date(form.value.fecha_finalizacion).toISOString(),
+    fecha_finalizacion: new Date(new Date(form.value.fecha_finalizacion).getTime() - (7 * 60 * 60 * 1000)).toISOString(),
   })
 
   loading.value = false
