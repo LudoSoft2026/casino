@@ -18,7 +18,7 @@ import { emitirNuevaParticipacion } from '../../config/eventos';
     //Emitir actualizacion en tiempo real si la apuesta fue exitosa
     if (result.p_part_id){
       const { rows: apuesta } = await pool.query(
-        `SELECT total:participantes, total_apostado FROM apuestas WHERE id = $1`,
+        `SELECT total_participantes, total_apostado FROM apuestas WHERE id = $1`,
         [data.apuesta_id]
       );
       emitirNuevaParticipacion(data.apuesta_id, {
