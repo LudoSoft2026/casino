@@ -128,7 +128,7 @@ const formatearTiempo = (segundos: number) => {
 
           <v-card-text>
             <!-- Info -->
-            <v-row dense>
+            <v-row density="comfortable">
               <v-col cols="6">
                 <v-icon size="16" class="mr-1">mdi-account-group</v-icon>
                 <span class="text-sm">{{ apuesta.total_participantes }} participantes</span>

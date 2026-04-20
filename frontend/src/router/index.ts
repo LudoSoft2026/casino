@@ -42,15 +42,13 @@ const router = createRouter({
 })
 
 // Guard de navegación
-router.beforeEach((to, _from, next) => {
+router.beforeEach((to, _from) => {
   const auth = useAuthStore()
 
   if (to.meta.requiresAuth && !auth.isLoggedIn) {
-    next('/login')
+    return '/login'
   } else if (to.meta.requiresGuest && auth.isLoggedIn) {
-    next('/apuestas')
-  } else {
-    next()
+    return '/apuestas'
   }
 })
 
