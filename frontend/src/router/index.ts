@@ -33,6 +33,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/admin',
+      name: 'admin',
+      component: () => import('@/views/AdminView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
       path: '/perfil',
       name: 'perfil',
       component: () => import('@/views/PerfilView.vue'),
@@ -48,6 +54,8 @@ router.beforeEach((to, _from) => {
   if (to.meta.requiresAuth && !auth.isLoggedIn) {
     return '/login'
   } else if (to.meta.requiresGuest && auth.isLoggedIn) {
+    return '/apuestas'
+  } else if (to.meta.requiresAdmin && !auth.isAdmin) {
     return '/apuestas'
   }
 })

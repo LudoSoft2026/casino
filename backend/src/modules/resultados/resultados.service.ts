@@ -18,7 +18,7 @@ export const confirmarResultado = async (adminId: string, data: ConfirmarResulta
 };
  export const listarResultadosPendientes = async () => {
     const { rows } = await pool.query(
-        `SELECT r.*, a.titulo AS apuesta_titulo, o.descripcion AS opcion_ganadora FROM resultados_apuestas r  JOIN apuestas a ON a.id = r.apuesta_id JOIN opciones_apuestas o ON o.id = r.opcion_ganadora_id WHERE r.estado = 'propuesto' ORDER BY r.fecha_propuesta ASC`
+        `SELECT r.*, a.titulo AS apuesta_titulo, o.descripcion AS opcion_ganadora FROM resultados_apuesta r  JOIN apuestas a ON a.id = r.apuesta_id JOIN opciones_apuesta o ON o.id = r.opcion_ganadora_id WHERE r.estado = 'propuesto' ORDER BY r.fecha_propuesta ASC`
     );
     return rows;
 };

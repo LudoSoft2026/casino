@@ -66,6 +66,12 @@ if (auth.isLoggedIn) {
               @click="$router.push('/perfil')"
             />
             <v-list-item
+              v-if="auth.isAdmin"
+              prepend-icon="mdi-shield-crown"
+              title="Panel Admin"
+              @click="$router.push('/admin')"
+            />
+            <v-list-item
               prepend-icon="mdi-plus"
               title="Crear apuesta"
               @click="$router.push('/apuestas/crear')"
