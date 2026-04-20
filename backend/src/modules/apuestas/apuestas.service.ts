@@ -19,6 +19,7 @@ export const crearApuesta = async (creadorId: string, data: CrearApuestaDTO) => 
 };
 
 export const listarApuestas = async () => {
+      console.log('⏰ Hora del servidor:', new Date());
     const { rows } = await pool.query(`SELECT * FROM V_APUESTAS_ACTIVAS ORDER BY es_tendencia DESC, fecha_creacion DESC`);
     return rows;
 };

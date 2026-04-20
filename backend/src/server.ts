@@ -4,6 +4,8 @@ import { ENV } from './config/env';
 import { pool } from './config/db';
 import { initSocket } from './config/socket';
 
+process.env.TZ = 'America/Mazatlan';
+
 const httpServer = http.createServer(app);
 initSocket(httpServer);
 
