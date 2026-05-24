@@ -19,6 +19,18 @@ interface Resultado {
   fecha_propuesta: string
 }
 
+interface Opcion {
+  id:          string
+  descripcion: string
+}
+
+interface ApuestaCerrada {
+  id:      string
+  titulo:  string
+  estado:  string
+  opciones: Opcion[]
+}
+
 const documentos      = ref<Documento[]>([])
 const loadingDocs     = ref(false)
 const mensajeDoc      = ref('')
@@ -29,6 +41,15 @@ const docSeleccionado = ref('')
 const resultados     = ref<Resultado[]>([])
 const loadingResults = ref(false)
 const mensajeResult  = ref('')
+
+const apuestasCerradas    = ref<ApuestaCerrada[]>([])
+const loadingCerradas     = ref(false)
+const dialogConfirmar     = ref(false)
+const apuestaConfirmar    = ref<ApuestaCerrada | null>(null)
+const opcionGanadora      = ref('')
+const mensajeConfirmar    = ref('')
+const errorConfirmar      = ref('')
+const loadingConfirmar    = ref(false)
 
 const cargarDocumentos = async () => {
   loadingDocs.value = true
@@ -44,6 +65,14 @@ const cargarResultados = async () => {
   const data = await res.json()
   resultados.value = data.resultados ?? []
   loadingResults.value = false
+}
+
+const cargarApuestasCerradas = async () => {
+  loadingCerradas.value = true
+  const res  = await apiFetch('/api/apuestas/admin/cerradas')
+  const data = await res.json()
+  apuestasCerradas.value = data.apuestas ?? []
+  loadingCerradas.value = false
 }
 
 const aprobarDocumento = async (documentoId: string) => {
@@ -92,6 +121,42 @@ const confirmarResultado = async (resultadoId: string, aprobar: boolean, motivo?
   await cargarResultados()
 }
 
+const abrirDialogoConfirmar = (apuesta: ApuestaCerrada) => {
+  apuestaConfirmar.value = apuesta
+  opcionGanadora.value   = ''
+  mensajeConfirmar.value = ''
+  errorConfirmar.value   = ''
+  dialogConfirmar.value  = true
+}
+
+const confirmarApuestaCerrada = async () => {
+  if (!opcionGanadora.value) {
+    errorConfirmar.value = 'Selecciona la opción ganadora.'
+    return
+  }
+  loadingConfirmar.value = true
+  errorConfirmar.value   = ''
+
+  const res  = await apiFetch('/api/apuestas/admin/declarar-ganador', {
+    method: 'POST',
+    body:   JSON.stringify({
+      apuesta_id:         apuestaConfirmar.value!.id,
+      opcion_ganadora_id: opcionGanadora.value,
+    }),
+  })
+  const data = await res.json()
+
+  if (res.ok) {
+    mensajeConfirmar.value = data.mensaje
+    await cargarApuestasCerradas()
+    await cargarResultados()
+  } else {
+    errorConfirmar.value = data.mensaje || 'Error al declarar ganador.'
+  }
+
+  loadingConfirmar.value = false
+}
+
 const urlArchivo = (ruta: string) => {
   const nombre = ruta.split('\\').pop() ?? ruta.split('/').pop()
   return `http://localhost:3000/uploads/${nombre}`
@@ -100,6 +165,7 @@ const urlArchivo = (ruta: string) => {
 onMounted(async () => {
   await cargarDocumentos()
   await cargarResultados()
+  await cargarApuestasCerradas()
 })
 </script>
 
@@ -117,16 +183,13 @@ onMounted(async () => {
         Documentos pendientes
         <v-chip class="ml-2" size="small" color="warning">{{ documentos.length }}</v-chip>
       </v-card-title>
-
       <v-card-text>
         <v-alert v-if="mensajeDoc" type="success" variant="tonal" class="mb-4" density="compact">
           {{ mensajeDoc }}
         </v-alert>
-
         <v-alert v-if="documentos.length === 0" type="info" variant="tonal">
           No hay documentos pendientes.
         </v-alert>
-
         <v-table v-else>
           <thead>
             <tr>
@@ -146,28 +209,13 @@ onMounted(async () => {
               <td>{{ doc.numero_documento }}</td>
               <td>{{ new Date(doc.fecha_subida).toLocaleDateString() }}</td>
               <td>
-                <v-btn
-                  color="info"
-                  size="small"
-                  class="mr-2"
-                  :href="urlArchivo(doc.ruta_archivo)"
-                  target="_blank"
-                >
+                <v-btn color="info" size="small" class="mr-2" :href="urlArchivo(doc.ruta_archivo)" target="_blank">
                   <v-icon>mdi-eye</v-icon>
                 </v-btn>
-                <v-btn
-                  color="success"
-                  size="small"
-                  class="mr-2"
-                  @click="aprobarDocumento(doc.documento_id)"
-                >
+                <v-btn color="success" size="small" class="mr-2" @click="aprobarDocumento(doc.documento_id)">
                   Aprobar
                 </v-btn>
-                <v-btn
-                  color="error"
-                  size="small"
-                  @click="abrirDialogoRechazo(doc.documento_id)"
-                >
+                <v-btn color="error" size="small" @click="abrirDialogoRechazo(doc.documento_id)">
                   Rechazar
                 </v-btn>
               </td>
@@ -178,22 +226,19 @@ onMounted(async () => {
     </v-card>
 
     <!-- Resultados pendientes -->
-    <v-card elevation="4" rounded="lg">
+    <v-card elevation="4" rounded="lg" class="mb-6">
       <v-card-title class="pa-4">
         <v-icon color="primary" class="mr-2">mdi-check-circle</v-icon>
         Resultados pendientes
         <v-chip class="ml-2" size="small" color="primary">{{ resultados.length }}</v-chip>
       </v-card-title>
-
       <v-card-text>
         <v-alert v-if="mensajeResult" type="success" variant="tonal" class="mb-4" density="compact">
           {{ mensajeResult }}
         </v-alert>
-
         <v-alert v-if="resultados.length === 0" type="info" variant="tonal">
           No hay resultados pendientes.
         </v-alert>
-
         <v-table v-else>
           <thead>
             <tr>
@@ -209,20 +254,44 @@ onMounted(async () => {
               <td>{{ resultado.opcion_ganadora }}</td>
               <td>{{ new Date(resultado.fecha_propuesta).toLocaleDateString() }}</td>
               <td>
-                <v-btn
-                  color="success"
-                  size="small"
-                  class="mr-2"
-                  @click="confirmarResultado(resultado.id, true)"
-                >
+                <v-btn color="success" size="small" class="mr-2" @click="confirmarResultado(resultado.id, true)">
                   Confirmar
                 </v-btn>
-                <v-btn
-                  color="error"
-                  size="small"
-                  @click="confirmarResultado(resultado.id, false, 'Resultado incorrecto')"
-                >
+                <v-btn color="error" size="small" @click="confirmarResultado(resultado.id, false, 'Resultado incorrecto')">
                   Rechazar
+                </v-btn>
+              </td>
+            </tr>
+          </tbody>
+        </v-table>
+      </v-card-text>
+    </v-card>
+
+    <!-- Apuestas cerradas -->
+    <v-card elevation="4" rounded="lg">
+      <v-card-title class="pa-4">
+        <v-icon color="error" class="mr-2">mdi-lock</v-icon>
+        Apuestas cerradas — declarar ganador
+        <v-chip class="ml-2" size="small" color="error">{{ apuestasCerradas.length }}</v-chip>
+      </v-card-title>
+      <v-card-text>
+        <v-alert v-if="apuestasCerradas.length === 0" type="info" variant="tonal">
+          No hay apuestas cerradas pendientes de resultado.
+        </v-alert>
+        <v-table v-else>
+          <thead>
+            <tr>
+              <th>Apuesta</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="apuesta in apuestasCerradas" :key="apuesta.id">
+              <td>{{ apuesta.titulo }}</td>
+              <td>
+                <v-btn color="warning" size="small" @click="abrirDialogoConfirmar(apuesta)">
+                  <v-icon start>mdi-flag-checkered</v-icon>
+                  Declarar ganador
                 </v-btn>
               </td>
             </tr>
@@ -236,17 +305,49 @@ onMounted(async () => {
       <v-card rounded="lg">
         <v-card-title>Rechazar documento</v-card-title>
         <v-card-text>
-          <v-textarea
-            v-model="motivoRechazo"
-            label="Motivo de rechazo"
-            variant="outlined"
-            rows="3"
-          />
+          <v-textarea v-model="motivoRechazo" label="Motivo de rechazo" variant="outlined" rows="3" />
         </v-card-text>
         <v-card-actions>
           <v-btn variant="text" @click="dialogRechazo = false">Cancelar</v-btn>
           <v-spacer />
           <v-btn color="error" @click="rechazarDocumento">Rechazar</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Dialog declarar ganador -->
+    <v-dialog v-model="dialogConfirmar" max-width="500">
+      <v-card v-if="apuestaConfirmar" rounded="lg">
+        <v-card-title>Declarar ganador</v-card-title>
+        <v-card-subtitle>{{ apuestaConfirmar.titulo }}</v-card-subtitle>
+        <v-card-text>
+          <v-alert v-if="mensajeConfirmar" type="success" variant="tonal" class="mb-4">
+            {{ mensajeConfirmar }}
+          </v-alert>
+          <v-alert v-if="errorConfirmar" type="error" variant="tonal" class="mb-4">
+            {{ errorConfirmar }}
+          </v-alert>
+          <div class="text-subtitle-2 mb-2">Selecciona la opción ganadora:</div>
+          <v-radio-group v-model="opcionGanadora">
+            <v-radio
+              v-for="opcion in apuestaConfirmar.opciones"
+              :key="opcion.id"
+              :label="opcion.descripcion"
+              :value="opcion.id"
+            />
+          </v-radio-group>
+        </v-card-text>
+        <v-card-actions>
+          <v-btn variant="text" @click="dialogConfirmar = false">Cancelar</v-btn>
+          <v-spacer />
+          <v-btn
+            color="warning"
+            :loading="loadingConfirmar"
+            :disabled="!!mensajeConfirmar"
+            @click="confirmarApuestaCerrada"
+          >
+            Confirmar ganador
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

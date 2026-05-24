@@ -33,16 +33,16 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+    path: '/wallet',
+    name: 'wallet',
+    component: () => import('@/views/WalletView.vue'),
+    meta: { requiresAuth: true },
+    },
+    {
       path: '/admin',
       name: 'admin',
       component: () => import('@/views/AdminView.vue'),
       meta: { requiresAuth: true, requiresAdmin: true },
-    },
-    {
-      path: '/historial',
-      name: 'historial',
-      component: () => import('@/views/HistorialView.vue'),
-      meta: { requiresAuth: true },
     },
     {
       path: '/perfil',

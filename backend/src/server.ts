@@ -3,11 +3,16 @@ import app from './app';
 import { ENV } from './config/env';
 import { pool } from './config/db';
 import { initSocket } from './config/socket';
+import { cerrarApuestasExpiradas } from './modules/apuestas/apuestas.service'
 
 process.env.TZ = 'America/Hermosillo';
 
 const httpServer = http.createServer(app);
 initSocket(httpServer);
+
+setInterval(async () => {
+  await cerrarApuestasExpiradas()
+}, 30000)
 
 const start = async () => {
   try {

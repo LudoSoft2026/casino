@@ -1,17 +1,22 @@
 import { Router } from 'express';
-import { crear, listar, obtener, preview } from './apuestas.controller';
-import { authenticateToken } from '../../middlewares/auth.middleware';
+import { apuestasCerradas, crear, listar, misApuestas, obtener, preview, todasConParticipantes, declararGanador } from './apuestas.controller';
+import { authenticateToken  } from '../../middlewares/auth.middleware';
 import { validate } from '../../middlewares/validate.middleware';
 import { crearApuestaSchema } from './apuestas.schema';
+import { soloAdmin } from '../../middlewares/role.middleware';
 
 const router = Router();
 
-//Publicas
-router.get('/', listar);
-router.get('/:id', obtener);
-router.get('/preview', preview);
+// Públicas
+router.get('/',                          listar);
+router.get('/preview',                   preview);
+router.get('/mis-apuestas',              authenticateToken, misApuestas);
+router.get('/admin/cerradas',            authenticateToken, soloAdmin, apuestasCerradas);
+router.get('/admin/todas',               authenticateToken, soloAdmin, todasConParticipantes);
+router.post('/admin/declarar-ganador',   authenticateToken, soloAdmin, declararGanador);
+router.get('/:id',                       obtener);
 
-//Protegidas
-router.post('/', authenticateToken, validate(crearApuestaSchema), crear);
+// Protegidas
+router.post('/',                         authenticateToken, validate(crearApuestaSchema), crear);
 
 export default router;

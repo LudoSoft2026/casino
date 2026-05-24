@@ -76,18 +76,18 @@ if (auth.isLoggedIn) {
               title="Crear apuesta"
               @click="$router.push('/apuestas/crear')"
             />
+            <v-list-item
+              prepend-icon="mdi-wallet"
+              title="Mi wallet"
+              @click="$router.push('/wallet')"
+            />
             <v-divider />
             <v-list-item
               prepend-icon="mdi-logout"
               title="Cerrar sesión"
               @click="cerrarSesion"
             />
-            </v-list>
-            <v-list-item
-              prepend-icon="mdi-history"
-              title="Mi historial"
-            @click="$router.push('/historial')"
-            />
+          </v-list>
         </v-menu>
 
       </div>
