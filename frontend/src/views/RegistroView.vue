@@ -231,7 +231,13 @@ const registro = async () => {
             </v-btn>
           </v-card-actions>
         </v-card>
-
+        <!-- Banner promocional -->
+        <v-img
+          src="/PromoCasino.png"
+          rounded="lg"
+          class="mt-4"
+          cover
+        />
       </v-col>
     </v-row>
   </v-container>
