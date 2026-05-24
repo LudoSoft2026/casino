@@ -12,23 +12,40 @@ interface Documento {
   ruta_archivo:     string
 }
 
-interface Resultado {
-  id:              string
-  apuesta_titulo:  string
-  opcion_ganadora: string
-  fecha_propuesta: string
-}
-
 interface Opcion {
   id:          string
   descripcion: string
 }
 
 interface ApuestaCerrada {
-  id:      string
-  titulo:  string
-  estado:  string
+  id:       string
+  titulo:   string
+  estado:   string
   opciones: Opcion[]
+}
+
+interface ParticipacionAdmin {
+  alias:               string
+  usuario_id:          string
+  id:                  string
+  apuesta_titulo:      string
+  opcion_elegida:      string
+  monto:               string
+  ganancia_proyectada: string
+  ganancia:            string | null
+  estado:              string
+  fecha_participacion: string
+}
+
+interface MesGrupo {
+  mes:             string
+  participaciones: ParticipacionAdmin[]
+}
+
+interface UsuarioGrupo {
+  alias:    string
+  expandido: boolean
+  meses:    MesGrupo[]
 }
 
 const documentos      = ref<Documento[]>([])
@@ -38,18 +55,18 @@ const motivoRechazo   = ref('')
 const dialogRechazo   = ref(false)
 const docSeleccionado = ref('')
 
-const resultados     = ref<Resultado[]>([])
-const loadingResults = ref(false)
-const mensajeResult  = ref('')
+const apuestasCerradas     = ref<ApuestaCerrada[]>([])
+const loadingCerradas      = ref(false)
+const dialogConfirmar      = ref(false)
+const apuestaConfirmar     = ref<ApuestaCerrada | null>(null)
+const opcionGanadora       = ref('')
+const mensajeConfirmar     = ref('')
+const errorConfirmar       = ref('')
+const loadingConfirmar     = ref(false)
+const comentarioValidacion = ref('')
 
-const apuestasCerradas    = ref<ApuestaCerrada[]>([])
-const loadingCerradas     = ref(false)
-const dialogConfirmar     = ref(false)
-const apuestaConfirmar    = ref<ApuestaCerrada | null>(null)
-const opcionGanadora      = ref('')
-const mensajeConfirmar    = ref('')
-const errorConfirmar      = ref('')
-const loadingConfirmar    = ref(false)
+const usuariosParticipaciones = ref<UsuarioGrupo[]>([])
+const loadingParticipaciones  = ref(false)
 
 const cargarDocumentos = async () => {
   loadingDocs.value = true
@@ -59,20 +76,43 @@ const cargarDocumentos = async () => {
   loadingDocs.value = false
 }
 
-const cargarResultados = async () => {
-  loadingResults.value = true
-  const res  = await apiFetch('/api/resultados/pendientes')
-  const data = await res.json()
-  resultados.value = data.resultados ?? []
-  loadingResults.value = false
-}
-
 const cargarApuestasCerradas = async () => {
   loadingCerradas.value = true
   const res  = await apiFetch('/api/apuestas/admin/cerradas')
   const data = await res.json()
   apuestasCerradas.value = data.apuestas ?? []
   loadingCerradas.value = false
+}
+
+const cargarParticipaciones = async () => {
+  loadingParticipaciones.value = true
+  const res  = await apiFetch('/api/participaciones/admin/todas')
+  const data = await res.json()
+  const participaciones: ParticipacionAdmin[] = data.participaciones ?? []
+
+  const porUsuario: Record<string, ParticipacionAdmin[]> = {}
+  participaciones.forEach(p => {
+    const alias = p.alias ?? 'Sin alias'
+    if (!porUsuario[alias]) porUsuario[alias] = []
+    porUsuario[alias].push(p)
+  })
+
+  usuariosParticipaciones.value = Object.entries(porUsuario).map(([alias, parts]) => {
+    const porMes: Record<string, ParticipacionAdmin[]> = {}
+    parts.forEach(p => {
+      const fecha = new Date(p.fecha_participacion)
+      const mes   = fecha.toLocaleString('es-MX', { month: 'long', year: 'numeric' })
+      if (!porMes[mes]) porMes[mes] = []
+      porMes[mes].push(p)
+    })
+    return {
+      alias,
+      expandido: false,
+      meses: Object.entries(porMes).map(([mes, participaciones]) => ({ mes, participaciones })),
+    }
+  })
+
+  loadingParticipaciones.value = false
 }
 
 const aprobarDocumento = async (documentoId: string) => {
@@ -107,26 +147,13 @@ const rechazarDocumento = async () => {
   await cargarDocumentos()
 }
 
-const confirmarResultado = async (resultadoId: string, aprobar: boolean, motivo?: string) => {
-  const res  = await apiFetch('/api/resultados/confirmar', {
-    method: 'POST',
-    body:   JSON.stringify({
-      resultado_id:   resultadoId,
-      aprobar,
-      motivo_rechazo: motivo ?? null,
-    }),
-  })
-  const data = await res.json()
-  mensajeResult.value = data.mensaje
-  await cargarResultados()
-}
-
 const abrirDialogoConfirmar = (apuesta: ApuestaCerrada) => {
-  apuestaConfirmar.value = apuesta
-  opcionGanadora.value   = ''
-  mensajeConfirmar.value = ''
-  errorConfirmar.value   = ''
-  dialogConfirmar.value  = true
+  apuestaConfirmar.value     = apuesta
+  opcionGanadora.value       = ''
+  mensajeConfirmar.value     = ''
+  errorConfirmar.value       = ''
+  comentarioValidacion.value = ''
+  dialogConfirmar.value      = true
 }
 
 const confirmarApuestaCerrada = async () => {
@@ -147,9 +174,8 @@ const confirmarApuestaCerrada = async () => {
   const data = await res.json()
 
   if (res.ok) {
-    mensajeConfirmar.value = data.mensaje
+    mensajeConfirmar.value = 'Resultados validados y premios distribuidos correctamente.'
     await cargarApuestasCerradas()
-    await cargarResultados()
   } else {
     errorConfirmar.value = data.mensaje || 'Error al declarar ganador.'
   }
@@ -164,8 +190,8 @@ const urlArchivo = (ruta: string) => {
 
 onMounted(async () => {
   await cargarDocumentos()
-  await cargarResultados()
   await cargarApuestasCerradas()
+  await cargarParticipaciones()
 })
 </script>
 
@@ -225,50 +251,8 @@ onMounted(async () => {
       </v-card-text>
     </v-card>
 
-    <!-- Resultados pendientes -->
-    <v-card elevation="4" rounded="lg" class="mb-6">
-      <v-card-title class="pa-4">
-        <v-icon color="primary" class="mr-2">mdi-check-circle</v-icon>
-        Resultados pendientes
-        <v-chip class="ml-2" size="small" color="primary">{{ resultados.length }}</v-chip>
-      </v-card-title>
-      <v-card-text>
-        <v-alert v-if="mensajeResult" type="success" variant="tonal" class="mb-4" density="compact">
-          {{ mensajeResult }}
-        </v-alert>
-        <v-alert v-if="resultados.length === 0" type="info" variant="tonal">
-          No hay resultados pendientes.
-        </v-alert>
-        <v-table v-else>
-          <thead>
-            <tr>
-              <th>Apuesta</th>
-              <th>Opción ganadora</th>
-              <th>Fecha propuesta</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="resultado in resultados" :key="resultado.id">
-              <td>{{ resultado.apuesta_titulo }}</td>
-              <td>{{ resultado.opcion_ganadora }}</td>
-              <td>{{ new Date(resultado.fecha_propuesta).toLocaleDateString() }}</td>
-              <td>
-                <v-btn color="success" size="small" class="mr-2" @click="confirmarResultado(resultado.id, true)">
-                  Confirmar
-                </v-btn>
-                <v-btn color="error" size="small" @click="confirmarResultado(resultado.id, false, 'Resultado incorrecto')">
-                  Rechazar
-                </v-btn>
-              </td>
-            </tr>
-          </tbody>
-        </v-table>
-      </v-card-text>
-    </v-card>
-
     <!-- Apuestas cerradas -->
-    <v-card elevation="4" rounded="lg">
+    <v-card elevation="4" rounded="lg" class="mb-6">
       <v-card-title class="pa-4">
         <v-icon color="error" class="mr-2">mdi-lock</v-icon>
         Apuestas cerradas — declarar ganador
@@ -297,6 +281,85 @@ onMounted(async () => {
             </tr>
           </tbody>
         </v-table>
+      </v-card-text>
+    </v-card>
+
+    <!-- Historial de participaciones por usuario -->
+    <v-card elevation="4" rounded="lg" class="mb-6">
+      <v-card-title class="pa-4">
+        <v-icon color="info" class="mr-2">mdi-account-group</v-icon>
+        Historial de participaciones por usuario
+      </v-card-title>
+      <v-card-text>
+        <v-progress-circular v-if="loadingParticipaciones" indeterminate color="primary" />
+
+        <v-alert v-else-if="usuariosParticipaciones.length === 0" type="info" variant="tonal">
+          No hay participaciones registradas.
+        </v-alert>
+
+        <v-expansion-panels v-else>
+          <v-expansion-panel
+            v-for="usuario in usuariosParticipaciones"
+            :key="usuario.alias"
+          >
+            <v-expansion-panel-title>
+              <v-icon class="mr-2">mdi-account</v-icon>
+              {{ usuario.alias }}
+              <v-chip class="ml-2" size="small" color="info">
+                {{ usuario.meses.reduce((acc, m) => acc + m.participaciones.length, 0) }} apuestas
+              </v-chip>
+            </v-expansion-panel-title>
+
+            <v-expansion-panel-text>
+              <v-expansion-panels>
+                <v-expansion-panel
+                  v-for="mes in usuario.meses"
+                  :key="mes.mes"
+                >
+                  <v-expansion-panel-title>
+                    <v-icon class="mr-2">mdi-calendar</v-icon>
+                    {{ mes.mes }}
+                    <v-chip class="ml-2" size="small" color="secondary">
+                      {{ mes.participaciones.length }} apuestas
+                    </v-chip>
+                  </v-expansion-panel-title>
+
+                  <v-expansion-panel-text>
+                    <v-table density="compact">
+                      <thead>
+                        <tr>
+                          <th>Apuesta</th>
+                          <th>Opción</th>
+                          <th>Monto</th>
+                          <th>Ganancia proy.</th>
+                          <th>Ganancia</th>
+                          <th>Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="p in mes.participaciones" :key="p.id">
+                          <td>{{ p.apuesta_titulo }}</td>
+                          <td>{{ p.opcion_elegida }}</td>
+                          <td>${{ Number(p.monto).toFixed(2) }}</td>
+                          <td>${{ Number(p.ganancia_proyectada).toFixed(2) }}</td>
+                          <td>{{ p.ganancia ? '$' + Number(p.ganancia).toFixed(2) : '-' }}</td>
+                          <td>
+                            <v-chip
+                              size="small"
+                              :color="p.estado === 'ganadora' ? 'success' : p.estado === 'perdedora' ? 'error' : 'info'"
+                            >
+                              {{ p.estado }}
+                            </v-chip>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </v-table>
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
+              </v-expansion-panels>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+        </v-expansion-panels>
       </v-card-text>
     </v-card>
 
@@ -336,6 +399,13 @@ onMounted(async () => {
               :value="opcion.id"
             />
           </v-radio-group>
+          <v-textarea
+            v-model="comentarioValidacion"
+            label="Comentarios de validación (opcional)"
+            variant="outlined"
+            rows="2"
+            class="mt-3"
+          />
         </v-card-text>
         <v-card-actions>
           <v-btn variant="text" @click="dialogConfirmar = false">Cancelar</v-btn>

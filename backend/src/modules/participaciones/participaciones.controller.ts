@@ -3,6 +3,7 @@ import {
     participar,
     obtenerHistorial,
     obtenerParticipacionPorApuesta,
+    obtenerTodasParticipaciones,
 } from "./participaciones.service";
 
 export const realizarApuesta = async (req: Request, res: Response) => {
@@ -31,4 +32,8 @@ export const historial = async (req: Request, res: Response) => {
 export const porApuesta = async (req: Request, res: Response) => {
     const participaciones = await obtenerParticipacionPorApuesta(req.params.apuestaId);
     res.json(participaciones);
+};
+export const todasParticipaciones = async (_req: Request, res: Response) => {
+  const participaciones = await obtenerTodasParticipaciones();
+  res.json({ participaciones });
 };

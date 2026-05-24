@@ -45,3 +45,24 @@ export const obtenerParticipacionPorApuesta = async (apuestaId: string) => {
     );
     return rows;
 };
+export const obtenerTodasParticipaciones = async () => {
+  const { rows } = await pool.query(
+    `SELECT 
+      u.alias,
+      u.id AS usuario_id,
+      p.id,
+      a.titulo AS apuesta_titulo,
+      o.descripcion AS opcion_elegida,
+      p.monto,
+      p.ganancia_proyectada,
+      p.ganancia,
+      p.estado,
+      p.fecha_participacion
+     FROM participaciones p
+     JOIN usuarios u ON u.id = p.usuario_id
+     JOIN apuestas a ON a.id = p.apuesta_id
+     JOIN opciones_apuesta o ON o.id = p.opcion_id
+     ORDER BY u.alias, p.fecha_participacion DESC`
+  );
+  return rows;
+};

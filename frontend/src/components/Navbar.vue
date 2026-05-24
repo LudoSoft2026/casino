@@ -31,7 +31,6 @@ if (auth.isLoggedIn) {
 
 <template>
   <v-app-bar color="surface" elevation="2">
-    <!-- Logo -->
     <v-app-bar-title>
       <v-btn variant="text" @click="$router.push('/apuestas')">
         <v-icon color="primary" class="mr-2">mdi-cards-playing</v-icon>
@@ -42,8 +41,8 @@ if (auth.isLoggedIn) {
     <template #append>
       <div v-if="auth.isLoggedIn" class="d-flex align-center ga-2 mr-4">
 
-        <!-- Saldo -->
-        <v-chip color="primary" variant="tonal" prepend-icon="mdi-wallet" size="large">
+        <!-- Saldo solo si no es admin -->
+        <v-chip v-if="!auth.isAdmin" color="primary" variant="tonal" prepend-icon="mdi-wallet" size="large">
           ${{ Number(saldo).toFixed(2) }}
         </v-chip>
 
@@ -61,6 +60,7 @@ if (auth.isLoggedIn) {
           </template>
           <v-list>
             <v-list-item
+              v-if="!auth.isAdmin"
               prepend-icon="mdi-account"
               title="Mi perfil"
               @click="$router.push('/perfil')"
@@ -77,9 +77,22 @@ if (auth.isLoggedIn) {
               @click="$router.push('/apuestas/crear')"
             />
             <v-list-item
+              v-if="!auth.isAdmin"
               prepend-icon="mdi-wallet"
               title="Mi wallet"
               @click="$router.push('/wallet')"
+            />
+            <v-list-item
+              v-if="!auth.isAdmin"
+              prepend-icon="mdi-history"
+              title="Mi historial"
+              @click="$router.push('/historial')"
+            />
+            <v-list-item
+              v-if="!auth.isAdmin"
+              prepend-icon="mdi-history"
+              title="Mi historial"
+              @click="$router.push('/historial')"
             />
             <v-divider />
             <v-list-item

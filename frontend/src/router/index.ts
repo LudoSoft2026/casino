@@ -27,6 +27,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/historial',
+      name: 'historial',
+      component: () => import('@/views/HistorialView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/apuestas/crear',
       name: 'crear-apuesta',
       component: () => import('@/views/CrearApuestaView.vue'),
