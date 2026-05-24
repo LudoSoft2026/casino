@@ -88,12 +88,6 @@ if (auth.isLoggedIn) {
               title="Mi historial"
               @click="$router.push('/historial')"
             />
-            <v-list-item
-              v-if="!auth.isAdmin"
-              prepend-icon="mdi-history"
-              title="Mi historial"
-              @click="$router.push('/historial')"
-            />
             <v-divider />
             <v-list-item
               prepend-icon="mdi-logout"
