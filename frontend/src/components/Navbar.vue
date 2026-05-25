@@ -5,15 +5,15 @@ import { useRouter } from 'vue-router'
 import { apiFetch } from '@/config/api'
 import { ref } from 'vue'
 
-const auth   = useAuthStore()
+const auth = useAuthStore()
 const router = useRouter()
 
-const saldo   = ref(0)
+const saldo = ref(0)
 const loading = ref(false)
 
 const obtenerSaldo = async () => {
   loading.value = true
-  const res  = await apiFetch('/api/saldos')
+  const res = await apiFetch('/api/saldos')
   const data = await res.json()
   saldo.value = data.saldo_disponible ?? 0
   loading.value = false
@@ -59,41 +59,18 @@ if (auth.isLoggedIn) {
             </v-btn>
           </template>
           <v-list>
-            <v-list-item
-              v-if="!auth.isAdmin"
-              prepend-icon="mdi-account"
-              title="Mi perfil"
-              @click="$router.push('/perfil')"
-            />
-            <v-list-item
-              v-if="auth.isAdmin"
-              prepend-icon="mdi-shield-crown"
-              title="Panel Admin"
-              @click="$router.push('/admin')"
-            />
-            <v-list-item
-              prepend-icon="mdi-plus"
-              title="Crear apuesta"
-              @click="$router.push('/apuestas/crear')"
-            />
-            <v-list-item
-              v-if="!auth.isAdmin"
-              prepend-icon="mdi-wallet"
-              title="Mi wallet"
-              @click="$router.push('/wallet')"
-            />
-            <v-list-item
-              v-if="!auth.isAdmin"
-              prepend-icon="mdi-history"
-              title="Mi historial"
-              @click="$router.push('/historial')"
-            />
+            <v-list-item v-if="!auth.isAdmin" prepend-icon="mdi-account" title="Mi perfil"
+              @click="$router.push('/perfil')" />
+            <v-list-item v-if="auth.isAdmin" prepend-icon="mdi-shield-crown" title="Panel Admin"
+              @click="$router.push('/admin')" />
+            <v-list-item v-if="!auth.isAdmin" prepend-icon="mdi-plus" title="Crear apuesta"
+              @click="$router.push('/apuestas/crear')" />
+            <v-list-item v-if="!auth.isAdmin" prepend-icon="mdi-wallet" title="Mi wallet"
+              @click="$router.push('/wallet')" />
+            <v-list-item v-if="!auth.isAdmin" prepend-icon="mdi-history" title="Mi historial"
+              @click="$router.push('/historial')" />
             <v-divider />
-            <v-list-item
-              prepend-icon="mdi-logout"
-              title="Cerrar sesión"
-              @click="cerrarSesion"
-            />
+            <v-list-item prepend-icon="mdi-logout" title="Cerrar sesión" @click="cerrarSesion" />
           </v-list>
         </v-menu>
 
