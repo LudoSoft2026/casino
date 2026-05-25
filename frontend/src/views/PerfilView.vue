@@ -156,12 +156,17 @@ onMounted(async () => {
 
             <!-- Ya tiene documento -->
             <div v-if="documento">
+
+              <!-- Solo mostrar alert si NO está aprobado -->
               <v-alert
-                :type="documento.estado === 'aprobado' ? 'success' : documento.estado === 'rechazado' ? 'error' : 'info'"
+                v-if="documento.estado !== 'aprobado'"
+                :type="documento.estado === 'rechazado' ? 'error' : 'info'"
                 variant="tonal"
                 class="mb-4"
               >
-                <div class="font-weight-bold">Estado: {{ documento.estado }}</div>
+                <div class="font-weight-bold">
+                  {{ documento.estado === 'rechazado' ? 'Documento rechazado' : 'Documento en revisión' }}
+                </div>
                 <div v-if="documento.motivo_rechazo">
                   Motivo: {{ documento.motivo_rechazo }}
                 </div>
