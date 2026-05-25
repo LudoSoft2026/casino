@@ -3,17 +3,20 @@
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 import { apiFetch } from '@/config/api'
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { io } from 'socket.io-client'
 
-const auth = useAuthStore()
+const auth   = useAuthStore()
 const router = useRouter()
 
-const saldo = ref(0)
+const saldo   = ref(0)
 const loading = ref(false)
+
+const socket = io('http://localhost:3000')
 
 const obtenerSaldo = async () => {
   loading.value = true
-  const res = await apiFetch('/api/saldos')
+  const res  = await apiFetch('/api/saldos')
   const data = await res.json()
   saldo.value = data.saldo_disponible ?? 0
   loading.value = false
@@ -24,9 +27,23 @@ const cerrarSesion = () => {
   router.push('/login')
 }
 
-if (auth.isLoggedIn) {
-  obtenerSaldo()
-}
+onMounted(() => {
+  if (auth.isLoggedIn) {
+    obtenerSaldo()
+    if (auth.usuario?.id) {
+      console.log('🔌 Uniéndose a sala:', auth.usuario.id)
+      socket.emit('join:usuario', auth.usuario.id)
+      socket.on('saldo:actualizado', (data: { saldo: number }) => {
+        console.log('💰 Saldo actualizado:', data.saldo)
+        saldo.value = data.saldo
+      })
+    }
+  }
+})
+
+onUnmounted(() => {
+  socket.disconnect()
+})
 </script>
 
 <template>

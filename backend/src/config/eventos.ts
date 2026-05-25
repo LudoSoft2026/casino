@@ -19,7 +19,7 @@ export const emitirResultadoConfirmado = (apuestaId: string, data: {
 
 //Notificar actualizacion de saldo a un usuario especifico
 export const emitirSaldoActualizado = (usuarioId: string, saldo: number) => {
-    getIO().to(`usuario:${usuarioId}`).emit('saldo: actualizado', { saldo });
+    getIO().to(`usuario:${usuarioId}`).emit('saldo:actualizado', { saldo });
 };
 
 //Notificar apuesta proxima a cerrar
