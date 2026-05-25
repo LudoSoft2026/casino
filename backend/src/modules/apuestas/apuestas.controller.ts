@@ -8,6 +8,7 @@ import {
     obtenerApuestasConParticipantes,
     declararGanadorAdmin,
     previewApuesta,
+    eliminarApuesta,
 } from "./apuestas.service";
 
 export const crear = async (req: Request, res: Response) => {
@@ -19,6 +20,15 @@ export const crear = async (req: Request, res: Response) => {
     }
     res.status(201).json({ mensaje: result.p_mensaje, apuestaId: result.p_apuesta_id });
 };
+
+export const eliminar = async (req: Request, res: Response) => {
+  const result = await eliminarApuesta(req.params.id)
+  if (!result) {
+    res.status(400).json({ mensaje: 'No se puede eliminar esta apuesta.' })
+    return
+  }
+  res.json({ mensaje: 'Apuesta eliminada correctamente.' })
+}
 
 export const listar = async (_req: Request, res: Response) => {
     const apuestas = await listarApuestas();

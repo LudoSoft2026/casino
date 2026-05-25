@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { apuestasCerradas, crear, listar, misApuestas, obtener, preview, todasConParticipantes, declararGanador } from './apuestas.controller';
+import { apuestasCerradas, crear, listar, misApuestas, obtener, preview, todasConParticipantes, declararGanador, eliminar } from './apuestas.controller';
 import { authenticateToken  } from '../../middlewares/auth.middleware';
 import { validate } from '../../middlewares/validate.middleware';
 import { crearApuestaSchema } from './apuestas.schema';
@@ -18,5 +18,6 @@ router.get('/:id',                       obtener);
 
 // Protegidas
 router.post('/',                         authenticateToken, validate(crearApuestaSchema), crear);
+router.delete('/:id',                    authenticateToken, eliminar);
 
 export default router;

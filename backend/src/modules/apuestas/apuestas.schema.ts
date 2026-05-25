@@ -5,8 +5,8 @@ export const crearApuestaSchema =   z.object({
     descripcion:                    z.string().min(10),
     opciones:                       z.array(z.string().min(2).max(200)).min(2),
     probabilidades:                 z.array(z.number().positive()).min(2),
-    monto_minimo:                   z.number().gt(0),
-    monto_maximo:                   z.number().positive().optional(),
+    monto_minimo:                   z.number().min(1),
+    monto_maximo:                   z.number().min(1).optional(),
     fecha_finalizacion:             z.string().datetime({ message: 'Formato: ISO 8601' }),
 }).refine(data => data.opciones.length === data.probabilidades.length, {
     message: 'Cada opocion debe tener una probabilidad correspondiente',
