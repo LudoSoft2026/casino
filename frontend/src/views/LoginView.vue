@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const route  = useRoute()
 const auth   = useAuthStore()
 
 const correo   = ref('')
@@ -11,6 +12,11 @@ const password = ref('')
 const loading  = ref(false)
 const error    = ref('')
 const showPass = ref(false)
+
+// Mostrar mensaje si viene de suspensión/bloqueo
+if (route.query.mensaje) {
+  error.value = String(route.query.mensaje)
+}
 
 const login = async () => {
   error.value   = ''

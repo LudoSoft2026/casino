@@ -222,7 +222,74 @@ onMounted(async () => {
   await cargarApuestasCerradas()
   await cargarParticipaciones()
   await cargarApuestasActivas()
+  await cargarUsuarios()
 })
+
+interface Usuario {
+  id:             string
+  alias:          string
+  correo:         string
+  rol:            string
+  estado:         string
+  fecha_registro: string
+}
+
+const usuarios            = ref<Usuario[]>([])
+const loadingUsuarios     = ref(false)
+const dialogEstado        = ref(false)
+const usuarioSeleccionado = ref<Usuario | null>(null)
+const accionEstado        = ref('suspender')
+const motivoEstado        = ref('')
+const mensajeEstado       = ref('')
+const errorEstado         = ref('')
+const loadingEstado       = ref(false)
+
+const cargarUsuarios = async () => {
+  loadingUsuarios.value = true
+  const res  = await apiFetch('/api/usuarios')
+  const data = await res.json()
+  usuarios.value = data.usuarios ?? []
+  loadingUsuarios.value = false
+}
+
+const abrirDialogoEstado = (usuario: Usuario) => {
+  usuarioSeleccionado.value = usuario
+  accionEstado.value        = 'suspender'
+  motivoEstado.value        = ''
+  mensajeEstado.value       = ''
+  errorEstado.value         = ''
+  dialogEstado.value        = true
+}
+
+const cambiarEstado = async () => {
+  if (!motivoEstado.value) {
+    errorEstado.value = 'El motivo es obligatorio.'
+    return
+  }
+  loadingEstado.value = true
+  errorEstado.value   = ''
+
+  const res  = await apiFetch(`/api/usuarios/${usuarioSeleccionado.value!.id}/estado`, {
+    method: 'PUT',
+    body:   JSON.stringify({ accion: accionEstado.value, motivo: motivoEstado.value }),
+  })
+  const data = await res.json()
+
+  if (res.ok) {
+    mensajeEstado.value = data.mensaje
+    await cargarUsuarios()
+  } else {
+    errorEstado.value = data.mensaje || 'Error al cambiar estado.'
+  }
+  loadingEstado.value = false
+}
+
+const colorEstado = (estado: string) => {
+  if (estado === 'verificada')   return 'success'
+  if (estado === 'suspendida')   return 'warning'
+  if (estado === 'bloqueada')    return 'error'
+  return 'info'
+}
 </script>
 
 <template>
@@ -353,6 +420,51 @@ onMounted(async () => {
         </v-table>
       </v-card-text>
     </v-card>
+
+    <!-- Gestión de usuarios -->
+    <v-card elevation="4" rounded="lg" class="mb-6">
+      <v-card-title class="pa-4">
+        <v-icon color="purple" class="mr-2">mdi-account-cog</v-icon>
+        Gestión de usuarios
+        <v-chip class="ml-2" size="small" color="purple">{{ usuarios.length }}</v-chip>
+      </v-card-title>
+      <v-card-text>
+        <v-progress-circular v-if="loadingUsuarios" indeterminate color="primary" />
+        <v-alert v-else-if="usuarios.length === 0" type="info" variant="tonal">
+          No hay usuarios registrados.
+        </v-alert>
+        <v-table v-else>
+          <thead>
+            <tr>
+              <th>Alias</th>
+              <th>Correo</th>
+              <th>Estado</th>
+              <th>Registro</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="usuario in usuarios" :key="usuario.id">
+              <td>{{ usuario.alias }}</td>
+              <td>{{ usuario.correo }}</td>
+              <td>
+                <v-chip :color="colorEstado(usuario.estado)" size="small">
+                  {{ usuario.estado }}
+                </v-chip>
+              </td>
+              <td>{{ new Date(usuario.fecha_registro).toLocaleDateString() }}</td>
+              <td>
+                <v-btn color="warning" size="small" @click="abrirDialogoEstado(usuario)">
+                  <v-icon start>mdi-account-edit</v-icon>
+                  Gestionar
+                </v-btn>
+              </td>
+            </tr>
+          </tbody>
+        </v-table>
+      </v-card-text>
+    </v-card>
+
     <!-- Historial de participaciones por usuario -->
     <v-card elevation="4" rounded="lg" class="mb-6">
       <v-card-title class="pa-4">
@@ -361,21 +473,18 @@ onMounted(async () => {
       </v-card-title>
       <v-card-text>
         <v-progress-circular v-if="loadingParticipaciones" indeterminate color="primary" />
-
         <v-alert v-else-if="usuariosParticipaciones.length === 0" type="info" variant="tonal">
           No hay participaciones registradas.
         </v-alert>
-
         <v-expansion-panels v-else>
           <v-expansion-panel v-for="usuario in usuariosParticipaciones" :key="usuario.alias">
             <v-expansion-panel-title>
               <v-icon class="mr-2">mdi-account</v-icon>
               {{ usuario.alias }}
               <v-chip class="ml-2" size="small" color="info">
-                {{usuario.meses.reduce((acc, m) => acc + m.participaciones.length, 0)}} apuestas
+                {{ usuario.meses.reduce((acc, m) => acc + m.participaciones.length, 0) }} apuestas
               </v-chip>
             </v-expansion-panel-title>
-
             <v-expansion-panel-text>
               <v-expansion-panels>
                 <v-expansion-panel v-for="mes in usuario.meses" :key="mes.mes">
@@ -386,7 +495,6 @@ onMounted(async () => {
                       {{ mes.participaciones.length }} apuestas
                     </v-chip>
                   </v-expansion-panel-title>
-
                   <v-expansion-panel-text>
                     <v-table density="compact">
                       <thead>
@@ -453,11 +561,11 @@ onMounted(async () => {
           </v-alert>
           <div class="text-subtitle-2 mb-2">Selecciona la opción ganadora:</div>
           <v-radio-group v-model="opcionGanadora">
-            <v-radio v-for="opcion in apuestaConfirmar.opciones" :key="opcion.id" :label="opcion.descripcion"
-              :value="opcion.id" />
+            <v-radio v-for="opcion in apuestaConfirmar.opciones" :key="opcion.id"
+              :label="opcion.descripcion" :value="opcion.id" />
           </v-radio-group>
-          <v-textarea v-model="comentarioValidacion" label="Comentarios de validación (opcional)" variant="outlined"
-            rows="2" class="mt-3" />
+          <v-textarea v-model="comentarioValidacion" label="Comentarios de validación (opcional)"
+            variant="outlined" rows="2" class="mt-3" />
         </v-card-text>
         <v-card-actions>
           <v-btn variant="text" @click="dialogConfirmar = false">Cancelar</v-btn>
@@ -465,6 +573,36 @@ onMounted(async () => {
           <v-btn color="warning" :loading="loadingConfirmar" :disabled="!!mensajeConfirmar"
             @click="confirmarApuestaCerrada">
             Confirmar ganador
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Dialog gestión usuario -->
+    <v-dialog v-model="dialogEstado" max-width="500">
+      <v-card v-if="usuarioSeleccionado" rounded="lg">
+        <v-card-title>Gestionar usuario</v-card-title>
+        <v-card-subtitle>{{ usuarioSeleccionado.alias }}</v-card-subtitle>
+        <v-card-text>
+          <v-alert v-if="mensajeEstado" type="success" variant="tonal" class="mb-4">
+            {{ mensajeEstado }}
+          </v-alert>
+          <v-alert v-if="errorEstado" type="error" variant="tonal" class="mb-4">
+            {{ errorEstado }}
+          </v-alert>
+          <div class="text-subtitle-2 mb-2">Selecciona la acción:</div>
+          <v-radio-group v-model="accionEstado" class="mb-3">
+            <v-radio label="Activar"   value="activar"   color="success" />
+            <v-radio label="Suspender" value="suspender" color="warning" />
+            <v-radio label="Bloquear"  value="bloquear"  color="error" />
+          </v-radio-group>
+          <v-textarea v-model="motivoEstado" label="Motivo *" variant="outlined" rows="2" />
+        </v-card-text>
+        <v-card-actions>
+          <v-btn variant="text" @click="dialogEstado = false">Cancelar</v-btn>
+          <v-spacer />
+          <v-btn color="warning" :loading="loadingEstado" :disabled="!!mensajeEstado" @click="cambiarEstado">
+            Confirmar
           </v-btn>
         </v-card-actions>
       </v-card>

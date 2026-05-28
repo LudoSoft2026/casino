@@ -10,6 +10,7 @@ import saldosRoutes from './modules/saldos/saldos.routes';
 import retirosRoutes from './modules/retiros/retiros.routes';
 import documentosRoutes from './modules/documentos/documentos.routes';
 import { errorMiddleware } from './middlewares/error.middleware';
+import usuariosRoutes from './modules/usuarios/usuarios.routes';
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use('/api/saldos',          saldosRoutes);
 app.use('/api/retiros',         retirosRoutes);
 app.use('/api/documentos',      documentosRoutes);
 app.use('/uploads', express.static(path.join(__dirname, '../src/config/uploads')))
+app.use('/api/usuarios', usuariosRoutes)
 
 // Health check
 app.get('/health', (_req, res) => {

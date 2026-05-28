@@ -40,6 +40,14 @@ export const loginUsuario = async (data: LoginDTO, ip: string, userAgent: string
     return { token: null, mensaje: 'Cuenta bloqueada temporalmente. Intenta más tarde.' };
   }
 
+  if (usuario.estado === 'suspendida') {
+    return { token: null, mensaje: 'Su cuenta se encuentra suspendida por infringir las normas de la plataforma.' };
+  }
+
+  if (usuario.estado === 'bloqueada' && !usuario.bloqueado_hasta) {
+    return { token: null, mensaje: 'Su cuenta se encuentra bloqueada. Contacte al administrador.' };
+  }
+
   if (!usuario.password_hash) {
     return { token: null, mensaje: 'Credenciales incorrectas.' };
   }

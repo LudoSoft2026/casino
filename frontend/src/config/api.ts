@@ -18,5 +18,11 @@ export const apiFetch = async (url: string, options: RequestInit = {}) => {
     router.push('/login')
   }
 
+  if (res.status === 403) {
+    const data = await res.clone().json()
+    auth.logout()
+    router.push(`/login?mensaje=${encodeURIComponent(data.message || 'Tu cuenta ha sido suspendida o bloqueada.')}`)
+  }
+
   return res
 }
