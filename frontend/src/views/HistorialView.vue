@@ -24,12 +24,14 @@ const fechaFin        = ref('')
 const estadoLabel = (estado: string) => {
   if (estado === 'ganadora')  return 'Ganada'
   if (estado === 'perdedora') return 'Perdida'
+  if (estado === 'devuelta')  return 'Cancelada'
   return 'Pendiente'
 }
 
 const colorEstado = (estado: string) => {
   if (estado === 'ganadora')  return 'success'
   if (estado === 'perdedora') return 'error'
+  if (estado === 'devuelta')  return 'warning'
   return 'info'
 }
 

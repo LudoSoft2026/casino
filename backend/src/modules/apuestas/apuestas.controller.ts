@@ -9,6 +9,7 @@ import {
     declararGanadorAdmin,
     previewApuesta,
     eliminarApuesta,
+    cancelarApuesta,
 } from "./apuestas.service";
 
 export const crear = async (req: Request, res: Response) => {
@@ -20,6 +21,13 @@ export const crear = async (req: Request, res: Response) => {
     }
     res.status(201).json({ mensaje: result.p_mensaje, apuestaId: result.p_apuesta_id });
 };
+
+export const cancelar = async (req: Request, res: Response) => {
+  const usuarioId = req.usuario!.id
+  const apuestaId = req.params.id
+  const result    = await cancelarApuesta(usuarioId, apuestaId)
+  res.json({ mensaje: result.p_mensaje })
+}
 
 export const eliminar = async (req: Request, res: Response) => {
   const result = await eliminarApuesta(req.params.id)

@@ -2,25 +2,31 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useApuestasStore, type Apuesta } from '@/stores/apuestas'
 import { useAuthStore } from '@/stores/auth'
+import { apiFetch } from '@/config/api'
 import { io } from 'socket.io-client'
 
 const apuestasStore = useApuestasStore()
-const auth = useAuthStore()
+const auth          = useAuthStore()
 
-const dialogApostar = ref(false)
+const dialogApostar       = ref(false)
 const apuestaSeleccionada = ref<Apuesta | null>(null)
-const opcionSeleccionada = ref('')
-const montoApostar = ref(0)
-const loadingApostar = ref(false)
-const mensajeApostar = ref('')
-const errorApostar = ref('')
+const opcionSeleccionada  = ref('')
+const montoApostar        = ref(0)
+const loadingApostar      = ref(false)
+const mensajeApostar      = ref('')
+const errorApostar        = ref('')
+
+const loadingCancelar = ref<Record<string, boolean>>({})
+const snackCancelar   = ref(false)
+const mensajeCancelar = ref('')
 
 const contadores = ref<Record<string, number>>({})
-const socket = io('http://localhost:3000')
+const socket     = io('http://localhost:3000')
 let intervalo: ReturnType<typeof setInterval>
 
 onMounted(async () => {
   await apuestasStore.listar()
+  await apuestasStore.cargarMisApuestas()
 
   apuestasStore.apuestas.forEach(a => {
     contadores.value[a.id] = a.segundos_restantes
@@ -36,6 +42,7 @@ onMounted(async () => {
   }, 1000)
 
   socket.on('apuesta:actualizada', async () => {
+    console.log('🔔 WebSocket recibido: apuesta:actualizada')
     await apuestasStore.listar()
     apuestasStore.apuestas.forEach(a => {
       contadores.value[a.id] = a.segundos_restantes
@@ -48,16 +55,17 @@ onUnmounted(() => {
   socket.disconnect()
 })
 
-const getSegundos = (id: string) => contadores.value[id] ?? 0
+const getSegundos  = (id: string) => contadores.value[id] ?? 0
 const getBloqueada = (id: string) => getSegundos(id) <= 30
+const esMiApuesta  = (id: string) => apuestasStore.misApuestas.some(a => a.id === id)
 
 const abrirDialogo = (apuesta: Apuesta) => {
   apuestaSeleccionada.value = apuesta
-  opcionSeleccionada.value = ''
-  montoApostar.value = apuesta.monto_minimo
-  mensajeApostar.value = ''
-  errorApostar.value = ''
-  dialogApostar.value = true
+  opcionSeleccionada.value  = ''
+  montoApostar.value        = apuesta.monto_minimo
+  mensajeApostar.value      = ''
+  errorApostar.value        = ''
+  dialogApostar.value       = true
 }
 
 const apostar = async () => {
@@ -66,7 +74,7 @@ const apostar = async () => {
     return
   }
   loadingApostar.value = true
-  errorApostar.value = ''
+  errorApostar.value   = ''
 
   const result = await apuestasStore.participar(
     apuestaSeleccionada.value!.id,
@@ -82,6 +90,19 @@ const apostar = async () => {
   }
 
   loadingApostar.value = false
+}
+
+const cancelarApuesta = async (apuestaId: string) => {
+  loadingCancelar.value[apuestaId] = true
+  const res  = await apiFetch(`/api/apuestas/cancelar/${apuestaId}`, {
+    method: 'DELETE',
+  })
+  const data = await res.json()
+  mensajeCancelar.value = data.mensaje
+  snackCancelar.value   = true
+  await apuestasStore.listar()
+  await apuestasStore.cargarMisApuestas()
+  loadingCancelar.value[apuestaId] = false
 }
 
 const formatearTiempo = (segundos: number) => {
@@ -166,13 +187,29 @@ const formatearTiempo = (segundos: number) => {
             </div>
           </v-card-text>
 
-          <v-card-actions>
-            <v-btn v-if="!auth.isAdmin" block color="primary" :disabled="getBloqueada(apuesta.id)"
-              @click="abrirDialogo(apuesta)">
+          <v-card-actions class="flex-column pa-3 ga-2">
+            <v-btn
+              v-if="!auth.isAdmin"
+              block
+              color="primary"
+              :disabled="getBloqueada(apuesta.id)"
+              @click="abrirDialogo(apuesta)"
+            >
               {{ getBloqueada(apuesta.id) ? 'Bloqueada' : 'Apostar' }}
             </v-btn>
             <v-btn v-else block color="grey" disabled>
               El admin no puede apostar
+            </v-btn>
+            <v-btn
+              v-if="esMiApuesta(apuesta.id) && !auth.isAdmin"
+              block
+              color="error"
+              variant="tonal"
+              :loading="loadingCancelar[apuesta.id]"
+              @click="cancelarApuesta(apuesta.id)"
+            >
+              <v-icon start>mdi-close-circle</v-icon>
+              Cancelar apuesta
             </v-btn>
           </v-card-actions>
 
@@ -199,9 +236,8 @@ const formatearTiempo = (segundos: number) => {
           <v-text-field v-model.number="montoApostar" label="Monto a apostar" type="number" variant="outlined"
             prepend-inner-icon="mdi-cash" :min="apuestaSeleccionada.monto_minimo" class="mt-2" />
           <v-alert type="info" variant="tonal" density="compact" class="mt-2">
-            Ganancia si ganas: ${{opcionSeleccionada
-              ? (montoApostar * (apuestaSeleccionada.opciones.find(o => o.id === opcionSeleccionada)?.cuota ??
-                1)).toFixed(2)
+            Ganancia si ganas: ${{ opcionSeleccionada
+              ? (montoApostar * (apuestaSeleccionada.opciones.find(o => o.id === opcionSeleccionada)?.cuota ?? 1)).toFixed(2)
               : '0.00'
             }}
           </v-alert>
@@ -215,6 +251,11 @@ const formatearTiempo = (segundos: number) => {
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Snackbar cancelar -->
+    <v-snackbar v-model="snackCancelar" :timeout="3000" color="success">
+      {{ mensajeCancelar }}
+    </v-snackbar>
 
   </v-container>
 </template>

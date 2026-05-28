@@ -17,6 +17,7 @@ export const crearApuesta = async (creadorId: string, data: CrearApuestaDTO) => 
     );
     return rows[0] as { p_apuesta_id: string | null; p_mensaje: String};
 };
+
 export const eliminarApuesta = async (apuestaId: string) => {
   const { rows } = await pool.query(
     `UPDATE apuestas SET estado = 'cancelada' WHERE id = $1 AND estado = 'activa' RETURNING id`,
@@ -24,6 +25,15 @@ export const eliminarApuesta = async (apuestaId: string) => {
   )
   return rows[0] ?? null
 }
+
+export const cancelarApuesta = async (usuarioId: string, apuestaId: string) => {
+  const { rows } = await pool.query(
+    'CALL sp_cancelar_apuesta($1, $2, NULL)',
+    [usuarioId, apuestaId]
+  )
+  return rows[0] as { p_mensaje: string }
+}
+
 export const listarApuestas = async () => {
       console.log('⏰ Hora del servidor:', new Date());
     const { rows } = await pool.query(`SELECT * FROM V_APUESTAS_ACTIVAS ORDER BY es_tendencia DESC, fecha_creacion DESC`);
