@@ -5,26 +5,26 @@ import { apiFetch } from '@/config/api'
 
 const auth = useAuthStore()
 
-const saldo          = ref(0)
-const documento      = ref<null | {
-  estado:          string
-  tipo_documento:  string
+const saldo = ref(0)
+const documento = ref<null | {
+  estado: string
+  tipo_documento: string
   numero_documento: string
-  motivo_rechazo:  string | null
+  motivo_rechazo: string | null
 }>(null)
-const loadingSaldo   = ref(false)
-const loadingDoc     = ref(false)
-const mensajeDoc     = ref('')
-const errorDoc       = ref('')
-const archivo        = ref<File | null>(null)
-const numeroDoc      = ref('')
-const tipoDoc        = ref('INE')
+const loadingSaldo = ref(false)
+const loadingDoc = ref(false)
+const mensajeDoc = ref('')
+const errorDoc = ref('')
+const archivo = ref<File | null>(null)
+const numeroDoc = ref('')
+const tipoDoc = ref('INE')
 
 const tiposDocumento = ['INE', 'pasaporte', 'cedula', 'otro']
 
 const obtenerSaldo = async () => {
   loadingSaldo.value = true
-  const res  = await apiFetch('/api/saldos')
+  const res = await apiFetch('/api/saldos')
   const data = await res.json()
   saldo.value = data.saldo_disponible ?? 0
   loadingSaldo.value = false
@@ -39,7 +39,7 @@ const obtenerDocumento = async () => {
 }
 
 const subirDocumento = async () => {
-  errorDoc.value   = ''
+  errorDoc.value = ''
   mensajeDoc.value = ''
 
   if (!archivo.value) {
@@ -54,14 +54,14 @@ const subirDocumento = async () => {
   loadingDoc.value = true
 
   const formData = new FormData()
-  formData.append('documento',        archivo.value)
+  formData.append('documento', archivo.value)
   formData.append('numero_documento', numeroDoc.value)
-  formData.append('tipo_documento',   tipoDoc.value)
+  formData.append('tipo_documento', tipoDoc.value)
 
   const res = await fetch('http://localhost:3000/api/documentos', {
-    method:  'POST',
+    method: 'POST',
     headers: { Authorization: `Bearer ${auth.token}` },
-    body:    formData,
+    body: formData,
   })
 
   const data = await res.json()
@@ -133,10 +133,7 @@ onMounted(async () => {
                   <v-icon>mdi-shield-account</v-icon>
                 </template>
                 <v-list-item-title>
-                  <v-chip
-                    :color="auth.usuario?.estado === 'verificada' ? 'success' : 'warning'"
-                    size="small"
-                  >
+                  <v-chip :color="auth.usuario?.estado === 'verificada' ? 'success' : 'warning'" size="small">
                     {{ auth.usuario?.estado }}
                   </v-chip>
                 </v-list-item-title>
@@ -158,14 +155,12 @@ onMounted(async () => {
             <div v-if="documento">
 
               <!-- Solo mostrar alert si NO está aprobado -->
-              <v-alert
-                v-if="documento.estado !== 'aprobado'"
-                :type="documento.estado === 'rechazado' ? 'error' : 'info'"
-                variant="tonal"
-                class="mb-4"
-              >
+              <v-alert v-if="documento.estado !== 'aprobado'"
+                :type="documento.estado === 'rechazado' ? 'error' : 'info'" variant="tonal" class="mb-4">
                 <div class="font-weight-bold">
-                  {{ documento.estado === 'rechazado' ? 'Documento rechazado' : 'Documento en revisión' }}
+                  {{ documento.estado === 'rechazado'
+                    ? 'Se ha notificado al usuario sobre el rechazo del documento.'
+                    : 'Documento en revisión' }}
                 </div>
                 <div v-if="documento.motivo_rechazo">
                   Motivo: {{ documento.motivo_rechazo }}
@@ -184,19 +179,9 @@ onMounted(async () => {
               <!-- Puede re-subir si fue rechazado -->
               <div v-if="documento.estado === 'rechazado'" class="mt-4">
                 <div class="text-subtitle-2 mb-2">Subir nuevo documento:</div>
-                <v-select
-                  v-model="tipoDoc"
-                  :items="tiposDocumento"
-                  label="Tipo de documento"
-                  variant="outlined"
-                  class="mb-3"
-                />
-                <v-text-field
-                  v-model="numeroDoc"
-                  label="Número de documento"
-                  variant="outlined"
-                  class="mb-3"
-                />
+                <v-select v-model="tipoDoc" :items="tiposDocumento" label="Tipo de documento" variant="outlined"
+                  class="mb-3" />
+                <v-text-field v-model="numeroDoc" label="Número de documento" variant="outlined" class="mb-3" />
                 <input type="file" accept=".jpg,.jpeg,.png,.pdf" @change="onFileChange" class="mb-3" />
                 <v-btn color="primary" :loading="loadingDoc" @click="subirDocumento" block>
                   Subir documento
@@ -218,19 +203,9 @@ onMounted(async () => {
                 {{ mensajeDoc }}
               </v-alert>
 
-              <v-select
-                v-model="tipoDoc"
-                :items="tiposDocumento"
-                label="Tipo de documento"
-                variant="outlined"
-                class="mb-3"
-              />
-              <v-text-field
-                v-model="numeroDoc"
-                label="Número de documento"
-                variant="outlined"
-                class="mb-3"
-              />
+              <v-select v-model="tipoDoc" :items="tiposDocumento" label="Tipo de documento" variant="outlined"
+                class="mb-3" />
+              <v-text-field v-model="numeroDoc" label="Número de documento" variant="outlined" class="mb-3" />
               <input type="file" accept=".jpg,.jpeg,.png,.pdf" @change="onFileChange" class="mb-3" />
               <v-btn color="primary" :loading="loadingDoc" @click="subirDocumento" block class="mt-2">
                 Subir documento
