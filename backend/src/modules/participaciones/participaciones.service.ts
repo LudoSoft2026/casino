@@ -1,9 +1,8 @@
 import { pool } from '../../config/db';
 import { ParticiparDTO } from './participaciones.schema';
-import { emitirNuevaParticipacion } from '../../config/eventos';
+import { emitirNuevaParticipacion, emitirSaldoActualizado } from '../../config/eventos';
 
 export const participar = async (usuarioId: string, data: ParticiparDTO) => {
-  // Verificar si ya participó en esta apuesta
   const { rows: yaParticipo } = await pool.query(
     `SELECT id FROM participaciones 
      WHERE usuario_id = $1 AND apuesta_id = $2`,
@@ -31,7 +30,6 @@ export const participar = async (usuarioId: string, data: ParticiparDTO) => {
     p_mensaje:          string;
   }
 
-  // Emitir actualización en tiempo real si la apuesta fue exitosa
   if (result.p_part_id) {
     const { rows: apuesta } = await pool.query(
       `SELECT total_participantes, total_apostado FROM apuestas WHERE id = $1`,
@@ -41,6 +39,14 @@ export const participar = async (usuarioId: string, data: ParticiparDTO) => {
       totalParticipantes: apuesta[0].total_participantes,
       totalApostado:      apuesta[0].total_apostado,
     })
+
+    // Emitir saldo actualizado al usuario
+    const { rows: saldoRows } = await pool.query(
+      'SELECT saldo_disponible FROM saldos WHERE usuario_id = $1',
+      [usuarioId]
+    )
+    console.log('💰 Emitiendo saldo a usuario:', usuarioId, saldoRows[0]?.saldo_disponible)
+    emitirSaldoActualizado(usuarioId, saldoRows[0].saldo_disponible)
   }
 
   return result

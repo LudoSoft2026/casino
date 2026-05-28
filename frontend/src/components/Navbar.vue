@@ -12,7 +12,9 @@ const router = useRouter()
 const saldo   = ref(0)
 const loading = ref(false)
 
-const socket = io('http://localhost:3000')
+const socket = io('http://localhost:3000', {
+  autoConnect: false
+})
 
 const obtenerSaldo = async () => {
   loading.value = true
@@ -31,10 +33,13 @@ onMounted(() => {
   if (auth.isLoggedIn) {
     obtenerSaldo()
     if (auth.usuario?.id) {
-      console.log('🔌 Uniéndose a sala:', auth.usuario.id)
-      socket.emit('join:usuario', auth.usuario.id)
+      socket.connect()
+      socket.on('connect', () => {
+        console.log('🔌 Conectado, uniéndose a sala:', auth.usuario!.id)
+        socket.emit('join:usuario', auth.usuario!.id)
+      })
       socket.on('saldo:actualizado', (data: { saldo: number }) => {
-        console.log('💰 Saldo actualizado:', data.saldo)
+        console.log('💰 Saldo recibido:', data.saldo)
         saldo.value = data.saldo
       })
     }

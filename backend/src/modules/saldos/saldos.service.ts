@@ -1,4 +1,5 @@
 import { pool } from '../../config/db';
+import { emitirSaldoActualizado } from '../../config/eventos'
 
 export const obtenerSaldo = async (usuarioId: string) => {
   const { rows } = await pool.query(
@@ -12,9 +13,16 @@ export const recargarSaldo = async (usuarioId: string, monto: number, metodo: st
   const { rows } = await pool.query(
     'CALL sp_recargar_saldo($1, $2, $3, NULL)',
     [usuarioId, monto, metodo]
-  );
-  return rows[0] as { p_mensaje: string };
-};
+  )
+
+  const { rows: saldoRows } = await pool.query(
+    'SELECT saldo_disponible FROM saldos WHERE usuario_id = $1',
+    [usuarioId]
+  )
+  emitirSaldoActualizado(usuarioId, saldoRows[0].saldo_disponible)
+
+  return rows[0] as { p_mensaje: string }
+}
 
 export const obtenerHistorial = async (usuarioId: string) => {
   const { rows } = await pool.query(
