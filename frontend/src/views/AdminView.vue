@@ -322,6 +322,81 @@ const gestionarSaldo = async () => {
   loadingSaldo.value = false
 }
 
+interface Categoria {
+  id:          string
+  nombre:      string
+  descripcion: string
+  icono:       string
+  activa:      boolean
+}
+
+const categorias           = ref<Categoria[]>([])
+const loadingCategorias    = ref(false)
+const nombreCategoria      = ref('')
+const descripcionCategoria = ref('')
+const iconoCategoria       = ref('mdi-tag')
+const mensajeCategoria     = ref('')
+const errorCategoria       = ref('')
+const loadingCategoria     = ref(false)
+
+const iconosDisponibles = [
+  'mdi-soccer', 'mdi-school', 'mdi-controller',
+  'mdi-movie', 'mdi-tag', 'mdi-music', 'mdi-trophy',
+  'mdi-cards-playing', 'mdi-fire', 'mdi-star'
+]
+
+const cargarCategorias = async () => {
+  loadingCategorias.value = true
+  const res  = await apiFetch('/api/categorias')
+  const data = await res.json()
+  categorias.value = data.categorias ?? []
+  loadingCategorias.value = false
+}
+
+const crearCategoria = async () => {
+  if (!nombreCategoria.value.trim()) {
+    errorCategoria.value = 'El nombre de la categoría es obligatorio.'
+    return
+  }
+  loadingCategoria.value = true
+  errorCategoria.value   = ''
+
+  const res  = await apiFetch('/api/categorias', {
+    method: 'POST',
+    body:   JSON.stringify({
+      nombre:      nombreCategoria.value,
+      descripcion: descripcionCategoria.value,
+      icono:       iconoCategoria.value,
+    }),
+  })
+  const data = await res.json()
+
+  if (res.ok) {
+    mensajeCategoria.value     = data.mensaje
+    nombreCategoria.value      = ''
+    descripcionCategoria.value = ''
+    iconoCategoria.value       = 'mdi-tag'
+    await cargarCategorias()
+  } else {
+    errorCategoria.value = data.mensaje || 'Error al crear categoría.'
+  }
+  loadingCategoria.value = false
+}
+
+const toggleCategoria = async (categoriaId: string) => {
+  const res  = await apiFetch(`/api/categorias/${categoriaId}`, { method: 'PUT' })
+  const data = await res.json()
+  mensajeCategoria.value = data.mensaje
+  await cargarCategorias()
+}
+
+const eliminarCat = async (categoriaId: string) => {
+  const res  = await apiFetch(`/api/categorias/${categoriaId}`, { method: 'DELETE' })
+  const data = await res.json()
+  mensajeCategoria.value = data.mensaje
+  await cargarCategorias()
+}
+
 const colorEstado = (estado: string) => {
   if (estado === 'verificada') return 'success'
   if (estado === 'suspendida') return 'warning'
@@ -340,6 +415,7 @@ onMounted(async () => {
   await cargarParticipaciones()
   await cargarApuestasActivas()
   await cargarUsuarios()
+  await cargarCategorias()
 })
 </script>
 
@@ -548,7 +624,7 @@ onMounted(async () => {
               <v-icon class="mr-2">mdi-account</v-icon>
               {{ usuario.alias }}
               <v-chip class="ml-2" size="small" color="info">
-                {{ usuario.meses.reduce((acc, m) => acc + m.participaciones.length, 0) }} apuestas
+                {{ usuario.meses.reduce((acc: number, m: MesGrupo) => acc + m.participaciones.length, 0) }} apuestas
               </v-chip>
             </v-expansion-panel-title>
             <v-expansion-panel-text>
@@ -597,6 +673,108 @@ onMounted(async () => {
         </v-expansion-panels>
       </v-card-text>
     </v-card>
+
+    <!-- Gestión de categorías -->
+<v-card elevation="4" rounded="lg" class="mb-6">
+  <v-card-title class="pa-4">
+    <v-icon color="teal" class="mr-2">mdi-tag-multiple</v-icon>
+    Gestión de categorías
+    <v-chip class="ml-2" size="small" color="teal">{{ categorias.length }}</v-chip>
+  </v-card-title>
+  <v-card-text>
+    <v-alert v-if="mensajeCategoria" type="success" variant="tonal" class="mb-4" density="compact">
+      {{ mensajeCategoria }}
+    </v-alert>
+    <v-alert v-if="errorCategoria" type="error" variant="tonal" class="mb-4" density="compact">
+      {{ errorCategoria }}
+    </v-alert>
+
+    <v-row class="mb-4">
+      <v-col cols="12" md="4">
+        <v-text-field
+          v-model="nombreCategoria"
+          label="Nombre *"
+          variant="outlined"
+          density="compact"
+          hide-details
+        />
+      </v-col>
+      <v-col cols="12" md="4">
+        <v-text-field
+          v-model="descripcionCategoria"
+          label="Descripción"
+          variant="outlined"
+          density="compact"
+          hide-details
+        />
+      </v-col>
+      <v-col cols="12" md="2">
+        <v-select
+          v-model="iconoCategoria"
+          :items="iconosDisponibles"
+          label="Icono"
+          variant="outlined"
+          density="compact"
+          hide-details
+        >
+          <template #item="{ item, props }">
+            <v-list-item v-bind="props">
+              <template #prepend>
+                <v-icon>{{ item.value }}</v-icon>
+              </template>
+            </v-list-item>
+          </template>
+        </v-select>
+      </v-col>
+      <v-col cols="12" md="2">
+        <v-btn block color="teal" :loading="loadingCategoria" @click="crearCategoria">
+          <v-icon start>mdi-plus</v-icon>
+          Crear
+        </v-btn>
+      </v-col>
+    </v-row>
+
+    <v-table v-if="categorias.length > 0">
+      <thead>
+        <tr>
+          <th>Icono</th>
+          <th>Nombre</th>
+          <th>Descripción</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="cat in categorias" :key="cat.id">
+          <td><v-icon>{{ cat.icono }}</v-icon></td>
+          <td>{{ cat.nombre }}</td>
+          <td>{{ cat.descripcion }}</td>
+          <td>
+            <v-chip :color="cat.activa ? 'success' : 'error'" size="small">
+              {{ cat.activa ? 'Activa' : 'Inactiva' }}
+            </v-chip>
+          </td>
+          <td>
+            <v-btn
+              :color="cat.activa ? 'warning' : 'success'"
+              size="small"
+              class="mr-1"
+              @click="toggleCategoria(cat.id)"
+            >
+              {{ cat.activa ? 'Desactivar' : 'Activar' }}
+            </v-btn>
+            <v-btn color="error" size="small" @click="eliminarCat(cat.id)">
+              <v-icon>mdi-delete</v-icon>
+            </v-btn>
+          </td>
+        </tr>
+      </tbody>
+    </v-table>
+    <v-alert v-else type="info" variant="tonal">
+      No hay categorías registradas.
+    </v-alert>
+  </v-card-text>
+</v-card>
 
     <!-- Dialog rechazo documento -->
     <v-dialog v-model="dialogRechazo" max-width="400">

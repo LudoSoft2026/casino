@@ -16,9 +16,8 @@ const transacciones = ref<Transaccion[]>([])
 const loading       = ref(false)
 
 const colorTipo = (tipo: string) => {
-  if (tipo === 'ganancia' || tipo === 'bienvenida' || tipo === 'recarga') return 'success'
+  if (tipo === 'ganancia' || tipo === 'bienvenida' || tipo === 'recarga' || tipo === 'devolucion') return 'success'
   if (tipo === 'retiro' || tipo === 'apuesta_deduccion') return 'error'
-  if (tipo === 'devolucion') return 'info'
   return 'warning'
 }
 
