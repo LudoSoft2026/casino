@@ -44,3 +44,19 @@ export const obtenerHistorialAdmin = async () => {
   );
   return rows;
 };
+
+export const abonarSaldoAdmin = async (adminId: string, usuarioId: string, monto: number, motivo: string) => {
+  const { rows } = await pool.query(
+    'CALL sp_abonar_saldo_admin($1, $2, $3, $4, NULL)',
+    [adminId, usuarioId, monto, motivo]
+  )
+  return rows[0] as { p_mensaje: string }
+}
+
+export const deducirSaldoAdmin = async (adminId: string, usuarioId: string, monto: number, motivo: string) => {
+  const { rows } = await pool.query(
+    'CALL sp_deducir_saldo_admin($1, $2, $3, $4, NULL)',
+    [adminId, usuarioId, monto, motivo]
+  )
+  return rows[0] as { p_mensaje: string }
+}
