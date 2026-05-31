@@ -1,10 +1,12 @@
 import { useAuthStore } from '@/stores/auth'
 import router from '@/router'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+
 export const apiFetch = async (url: string, options: RequestInit = {}) => {
   const auth = useAuthStore()
 
-  const res = await fetch(`http://localhost:3000${url}`, {
+  const res = await fetch(`${API_URL}${url}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',

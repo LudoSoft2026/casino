@@ -12,7 +12,7 @@ const router = useRouter()
 const saldo   = ref(0)
 const loading = ref(false)
 
-const socket = io('http://localhost:3000', {
+const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000', {
   autoConnect: false
 })
 

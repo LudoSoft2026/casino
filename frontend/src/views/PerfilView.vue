@@ -58,7 +58,7 @@ const subirDocumento = async () => {
   formData.append('numero_documento', numeroDoc.value)
   formData.append('tipo_documento', tipoDoc.value)
 
-  const res = await fetch('http://localhost:3000/api/documentos', {
+  const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/documentos`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${auth.token}` },
     body: formData,

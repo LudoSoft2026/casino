@@ -30,7 +30,7 @@ const errorProponer       = ref('')
 const loadingProponer     = ref(false)
 
 const contadores = ref<Record<string, number>>({})
-const socket     = io('http://localhost:3000')
+const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000')
 let intervalo: ReturnType<typeof setInterval>
 
 onMounted(async () => {

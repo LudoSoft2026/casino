@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: casino_db
+    environment:
+      POSTGRES_DB: apuestas_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - casino_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: casino_backend
+    environment:
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: apuestas_db
+      DB_USER: postgres
+      DB_PASSWORD: 123
+      JWT_SECRET: una_clave_secreta_muy_larga_y_segura_aqui
+      JWT_EXPIRES_IN: 7d
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    networks:
+      - casino_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: casino_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - casino_network
+
+volumes:
+  postgres_data:
+
+networks:
+  casino_network:
+    driver: bridge

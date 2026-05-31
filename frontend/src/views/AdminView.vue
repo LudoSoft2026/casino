@@ -406,7 +406,7 @@ const colorEstado = (estado: string) => {
 
 const urlArchivo = (ruta: string) => {
   const nombre = ruta.split('\\').pop() ?? ruta.split('/').pop()
-  return `http://localhost:3000/uploads/${nombre}`
+  return `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/uploads/${nombre}`
 }
 
 onMounted(async () => {
