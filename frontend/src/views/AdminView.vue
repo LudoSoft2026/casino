@@ -22,6 +22,8 @@ interface ApuestaCerrada {
   titulo: string
   estado: string
   opciones: Opcion[]
+  evidencia:       string | null
+  fecha_propuesta: string | null
 }
 
 interface ParticipacionAdmin {
@@ -226,27 +228,27 @@ onMounted(async () => {
 })
 
 interface Usuario {
-  id:             string
-  alias:          string
-  correo:         string
-  rol:            string
-  estado:         string
+  id: string
+  alias: string
+  correo: string
+  rol: string
+  estado: string
   fecha_registro: string
 }
 
-const usuarios            = ref<Usuario[]>([])
-const loadingUsuarios     = ref(false)
-const dialogEstado        = ref(false)
+const usuarios = ref<Usuario[]>([])
+const loadingUsuarios = ref(false)
+const dialogEstado = ref(false)
 const usuarioSeleccionado = ref<Usuario | null>(null)
-const accionEstado        = ref('suspender')
-const motivoEstado        = ref('')
-const mensajeEstado       = ref('')
-const errorEstado         = ref('')
-const loadingEstado       = ref(false)
+const accionEstado = ref('suspender')
+const motivoEstado = ref('')
+const mensajeEstado = ref('')
+const errorEstado = ref('')
+const loadingEstado = ref(false)
 
 const cargarUsuarios = async () => {
   loadingUsuarios.value = true
-  const res  = await apiFetch('/api/usuarios')
+  const res = await apiFetch('/api/usuarios')
   const data = await res.json()
   usuarios.value = data.usuarios ?? []
   loadingUsuarios.value = false
@@ -254,11 +256,11 @@ const cargarUsuarios = async () => {
 
 const abrirDialogoEstado = (usuario: Usuario) => {
   usuarioSeleccionado.value = usuario
-  accionEstado.value        = 'suspender'
-  motivoEstado.value        = ''
-  mensajeEstado.value       = ''
-  errorEstado.value         = ''
-  dialogEstado.value        = true
+  accionEstado.value = 'suspender'
+  motivoEstado.value = ''
+  mensajeEstado.value = ''
+  errorEstado.value = ''
+  dialogEstado.value = true
 }
 
 const cambiarEstado = async () => {
@@ -267,11 +269,11 @@ const cambiarEstado = async () => {
     return
   }
   loadingEstado.value = true
-  errorEstado.value   = ''
+  errorEstado.value = ''
 
-  const res  = await apiFetch(`/api/usuarios/${usuarioSeleccionado.value!.id}/estado`, {
+  const res = await apiFetch(`/api/usuarios/${usuarioSeleccionado.value!.id}/estado`, {
     method: 'PUT',
-    body:   JSON.stringify({ accion: accionEstado.value, motivo: motivoEstado.value }),
+    body: JSON.stringify({ accion: accionEstado.value, motivo: motivoEstado.value }),
   })
   const data = await res.json()
 
@@ -285,9 +287,9 @@ const cambiarEstado = async () => {
 }
 
 const colorEstado = (estado: string) => {
-  if (estado === 'verificada')   return 'success'
-  if (estado === 'suspendida')   return 'warning'
-  if (estado === 'bloqueada')    return 'error'
+  if (estado === 'verificada') return 'success'
+  if (estado === 'suspendida') return 'warning'
+  if (estado === 'bloqueada') return 'error'
   return 'info'
 }
 </script>
@@ -363,12 +365,19 @@ const colorEstado = (estado: string) => {
           <thead>
             <tr>
               <th>Apuesta</th>
+              <th>Estado</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="apuesta in apuestasCerradas" :key="apuesta.id">
               <td>{{ apuesta.titulo }}</td>
+              <td>
+                <v-chip :color="apuesta.estado === 'en_revision' ? 'warning' : 'error'" size="small">
+                  <v-icon start>{{ apuesta.estado === 'en_revision' ? 'mdi-flag-checkered' : 'mdi-lock' }}</v-icon>
+                  {{ apuesta.estado === 'en_revision' ? 'Resultado propuesto' : 'Sin resultado' }}
+                </v-chip>
+              </td>
               <td>
                 <v-btn color="warning" size="small" @click="abrirDialogoConfirmar(apuesta)">
                   <v-icon start>mdi-flag-checkered</v-icon>
@@ -482,7 +491,7 @@ const colorEstado = (estado: string) => {
               <v-icon class="mr-2">mdi-account</v-icon>
               {{ usuario.alias }}
               <v-chip class="ml-2" size="small" color="info">
-                {{ usuario.meses.reduce((acc, m) => acc + m.participaciones.length, 0) }} apuestas
+                {{usuario.meses.reduce((acc, m) => acc + m.participaciones.length, 0)}} apuestas
               </v-chip>
             </v-expansion-panel-title>
             <v-expansion-panel-text>
@@ -548,35 +557,50 @@ const colorEstado = (estado: string) => {
     </v-dialog>
 
     <!-- Dialog declarar ganador -->
-    <v-dialog v-model="dialogConfirmar" max-width="500">
-      <v-card v-if="apuestaConfirmar" rounded="lg">
-        <v-card-title>Declarar ganador</v-card-title>
-        <v-card-subtitle>{{ apuestaConfirmar.titulo }}</v-card-subtitle>
-        <v-card-text>
-          <v-alert v-if="mensajeConfirmar" type="success" variant="tonal" class="mb-4">
-            {{ mensajeConfirmar }}
-          </v-alert>
-          <v-alert v-if="errorConfirmar" type="error" variant="tonal" class="mb-4">
-            {{ errorConfirmar }}
-          </v-alert>
-          <div class="text-subtitle-2 mb-2">Selecciona la opción ganadora:</div>
-          <v-radio-group v-model="opcionGanadora">
-            <v-radio v-for="opcion in apuestaConfirmar.opciones" :key="opcion.id"
-              :label="opcion.descripcion" :value="opcion.id" />
-          </v-radio-group>
-          <v-textarea v-model="comentarioValidacion" label="Comentarios de validación (opcional)"
-            variant="outlined" rows="2" class="mt-3" />
-        </v-card-text>
-        <v-card-actions>
-          <v-btn variant="text" @click="dialogConfirmar = false">Cancelar</v-btn>
-          <v-spacer />
-          <v-btn color="warning" :loading="loadingConfirmar" :disabled="!!mensajeConfirmar"
-            @click="confirmarApuestaCerrada">
-            Confirmar ganador
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+<v-dialog v-model="dialogConfirmar" max-width="500">
+  <v-card v-if="apuestaConfirmar" rounded="lg">
+    <v-card-title>Declarar ganador</v-card-title>
+    <v-card-subtitle>{{ apuestaConfirmar.titulo }}</v-card-subtitle>
+    <v-card-text>
+      <v-alert v-if="mensajeConfirmar" type="success" variant="tonal" class="mb-4">
+        {{ mensajeConfirmar }}
+      </v-alert>
+      <v-alert v-if="errorConfirmar" type="error" variant="tonal" class="mb-4">
+        {{ errorConfirmar }}
+      </v-alert>
+
+      <!-- Evidencia del creador -->
+      <v-alert
+        v-if="apuestaConfirmar.evidencia"
+        type="info"
+        variant="tonal"
+        class="mb-4"
+      >
+        <div class="font-weight-bold">Evidencia del creador:</div>
+        <div>{{ apuestaConfirmar.evidencia }}</div>
+        <div class="text-caption mt-1">
+          Propuesto: {{ new Date(apuestaConfirmar.fecha_propuesta!).toLocaleString() }}
+        </div>
+      </v-alert>
+
+      <div class="text-subtitle-2 mb-2">Selecciona la opción ganadora:</div>
+      <v-radio-group v-model="opcionGanadora">
+        <v-radio v-for="opcion in apuestaConfirmar.opciones" :key="opcion.id" :label="opcion.descripcion"
+          :value="opcion.id" />
+      </v-radio-group>
+      <v-textarea v-model="comentarioValidacion" label="Comentarios de validación (opcional)" variant="outlined"
+        rows="2" class="mt-3" />
+    </v-card-text>
+    <v-card-actions>
+      <v-btn variant="text" @click="dialogConfirmar = false">Cancelar</v-btn>
+      <v-spacer />
+      <v-btn color="warning" :loading="loadingConfirmar" :disabled="!!mensajeConfirmar"
+        @click="confirmarApuestaCerrada">
+        Confirmar ganador
+      </v-btn>
+    </v-card-actions>
+  </v-card>
+</v-dialog>
 
     <!-- Dialog gestión usuario -->
     <v-dialog v-model="dialogEstado" max-width="500">
@@ -592,9 +616,9 @@ const colorEstado = (estado: string) => {
           </v-alert>
           <div class="text-subtitle-2 mb-2">Selecciona la acción:</div>
           <v-radio-group v-model="accionEstado" class="mb-3">
-            <v-radio label="Activar"   value="activar"   color="success" />
+            <v-radio label="Activar" value="activar" color="success" />
             <v-radio label="Suspender" value="suspender" color="warning" />
-            <v-radio label="Bloquear"  value="bloquear"  color="error" />
+            <v-radio label="Bloquear" value="bloquear" color="error" />
           </v-radio-group>
           <v-textarea v-model="motivoEstado" label="Motivo *" variant="outlined" rows="2" />
         </v-card-text>

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { apuestasCerradas, crear, listar, misApuestas, obtener, preview, todasConParticipantes, declararGanador, eliminar, cancelar } from './apuestas.controller';
+import { apuestasCerradas, crear, listar, misApuestas, obtener, preview, todasConParticipantes, declararGanador, eliminar, cancelar, obtenerOpciones } from './apuestas.controller';
 import { authenticateToken  } from '../../middlewares/auth.middleware';
 import { validate } from '../../middlewares/validate.middleware';
 import { crearApuestaSchema } from './apuestas.schema';
@@ -14,6 +14,7 @@ router.get('/mis-apuestas',              authenticateToken, misApuestas);
 router.get('/admin/cerradas',            authenticateToken, soloAdmin, apuestasCerradas);
 router.get('/admin/todas',               authenticateToken, soloAdmin, todasConParticipantes);
 router.post('/admin/declarar-ganador',   authenticateToken, soloAdmin, declararGanador);
+router.get('/:id/opciones', authenticateToken, obtenerOpciones)
 router.get('/:id',                       obtener);
 router.delete('/cancelar/:id',           authenticateToken, cancelar);
 

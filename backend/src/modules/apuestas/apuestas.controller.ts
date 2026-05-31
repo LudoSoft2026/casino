@@ -10,6 +10,7 @@ import {
     previewApuesta,
     eliminarApuesta,
     cancelarApuesta,
+    obtenerOpcionesApuesta
 } from "./apuestas.service";
 
 export const crear = async (req: Request, res: Response) => {
@@ -92,3 +93,8 @@ export const declararGanador = async (req: Request, res: Response) => {
     }
     res.json({ mensaje: result.mensaje });
 };
+
+export const obtenerOpciones = async (req: Request, res: Response) => {
+  const opciones = await obtenerOpcionesApuesta(req.params.id)
+  res.json({ opciones })
+}

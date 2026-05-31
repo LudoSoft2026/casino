@@ -20,6 +20,15 @@ const loadingCancelar = ref<Record<string, boolean>>({})
 const snackCancelar   = ref(false)
 const mensajeCancelar = ref('')
 
+// Proponer resultado
+const dialogProponer      = ref(false)
+const apuestaProponer     = ref<{ id: string; titulo: string; opciones: { id: string; descripcion: string }[] } | null>(null)
+const opcionGanadora      = ref('')
+const evidencia           = ref('')
+const mensajeProponer     = ref('')
+const errorProponer       = ref('')
+const loadingProponer     = ref(false)
+
 const contadores = ref<Record<string, number>>({})
 const socket     = io('http://localhost:3000')
 let intervalo: ReturnType<typeof setInterval>
@@ -42,7 +51,6 @@ onMounted(async () => {
   }, 1000)
 
   socket.on('apuesta:actualizada', async () => {
-    console.log('🔔 WebSocket recibido: apuesta:actualizada')
     await apuestasStore.listar()
     apuestasStore.apuestas.forEach(a => {
       contadores.value[a.id] = a.segundos_restantes
@@ -58,6 +66,8 @@ onUnmounted(() => {
 const getSegundos  = (id: string) => contadores.value[id] ?? 0
 const getBloqueada = (id: string) => getSegundos(id) <= 30
 const esMiApuesta  = (id: string) => apuestasStore.misApuestas.some(a => a.id === id)
+
+const misApuestasCerradas = () => apuestasStore.misApuestas.filter(a => a.estado === 'cerrada')
 
 const abrirDialogo = (apuesta: Apuesta) => {
   apuestaSeleccionada.value = apuesta
@@ -94,15 +104,56 @@ const apostar = async () => {
 
 const cancelarApuesta = async (apuestaId: string) => {
   loadingCancelar.value[apuestaId] = true
-  const res  = await apiFetch(`/api/apuestas/cancelar/${apuestaId}`, {
-    method: 'DELETE',
-  })
+  const res  = await apiFetch(`/api/apuestas/cancelar/${apuestaId}`, { method: 'DELETE' })
   const data = await res.json()
   mensajeCancelar.value = data.mensaje
   snackCancelar.value   = true
   await apuestasStore.listar()
   await apuestasStore.cargarMisApuestas()
   loadingCancelar.value[apuestaId] = false
+}
+
+const abrirDialogoProponer = async (apuestaId: string, titulo: string) => {
+  opcionGanadora.value  = ''
+  evidencia.value       = ''
+  mensajeProponer.value = ''
+  errorProponer.value   = ''
+
+  const res  = await apiFetch(`/api/apuestas/${apuestaId}/opciones`)
+  const data = await res.json()
+  apuestaProponer.value = { id: apuestaId, titulo, opciones: data.opciones ?? [] }
+  dialogProponer.value  = true
+}
+
+const proponer = async () => {
+  if (!opcionGanadora.value) {
+    errorProponer.value = 'Selecciona la opción ganadora.'
+    return
+  }
+  if (!evidencia.value.trim()) {
+    errorProponer.value = 'Por favor, indica una fuente o descripción para validar el resultado.'
+    return
+  }
+  loadingProponer.value = true
+  errorProponer.value   = ''
+
+  const res  = await apiFetch('/api/resultados/proponer', {
+    method: 'POST',
+    body:   JSON.stringify({
+      apuesta_id:         apuestaProponer.value!.id,
+      opcion_ganadora_id: opcionGanadora.value,
+      evidencia:          evidencia.value,
+    }),
+  })
+  const data = await res.json()
+
+  if (data.resultadoId) {
+    mensajeProponer.value = data.mensaje
+    await apuestasStore.cargarMisApuestas()
+  } else {
+    errorProponer.value = data.mensaje || 'Error al proponer resultado.'
+  }
+  loadingProponer.value = false
 }
 
 const formatearTiempo = (segundos: number) => {
@@ -217,6 +268,34 @@ const formatearTiempo = (segundos: number) => {
       </v-col>
     </v-row>
 
+    <!-- Mis apuestas cerradas pendientes de resultado -->
+    <div v-if="!auth.isAdmin && misApuestasCerradas().length > 0" class="mt-8">
+      <div class="text-h6 font-weight-bold mb-4">
+        <v-icon color="warning" class="mr-2">mdi-flag-checkered</v-icon>
+        Mis apuestas cerradas — proponer resultado
+      </div>
+      <v-row>
+        <v-col v-for="apuesta in misApuestasCerradas()" :key="apuesta.id" cols="12" md="6" lg="4">
+          <v-card elevation="4" rounded="lg" color="surface">
+            <v-card-title>{{ apuesta.titulo }}</v-card-title>
+            <v-card-subtitle>
+              <v-chip color="error" size="small">Cerrada</v-chip>
+            </v-card-subtitle>
+            <v-card-actions>
+              <v-btn
+                block
+                color="warning"
+                @click="abrirDialogoProponer(apuesta.id, apuesta.titulo)"
+              >
+                <v-icon start>mdi-flag-checkered</v-icon>
+                Proponer resultado
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-col>
+      </v-row>
+    </div>
+
     <!-- Dialog apostar -->
     <v-dialog v-model="dialogApostar" max-width="500">
       <v-card v-if="apuestaSeleccionada" rounded="lg">
@@ -247,6 +326,51 @@ const formatearTiempo = (segundos: number) => {
           <v-spacer />
           <v-btn color="primary" :loading="loadingApostar" :disabled="!!mensajeApostar" @click="apostar">
             Confirmar apuesta
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Dialog proponer resultado -->
+    <v-dialog v-model="dialogProponer" max-width="500">
+      <v-card v-if="apuestaProponer" rounded="lg">
+        <v-card-title>Proponer resultado</v-card-title>
+        <v-card-subtitle>{{ apuestaProponer.titulo }}</v-card-subtitle>
+        <v-card-text>
+          <v-alert v-if="mensajeProponer" type="success" variant="tonal" class="mb-4">
+            {{ mensajeProponer }}
+          </v-alert>
+          <v-alert v-if="errorProponer" type="error" variant="tonal" class="mb-4">
+            {{ errorProponer }}
+          </v-alert>
+          <div class="text-subtitle-2 mb-2">Selecciona la opción ganadora:</div>
+          <v-radio-group v-model="opcionGanadora">
+            <v-radio
+              v-for="opcion in apuestaProponer.opciones"
+              :key="opcion.id"
+              :label="opcion.descripcion"
+              :value="opcion.id"
+            />
+          </v-radio-group>
+          <v-textarea
+            v-model="evidencia"
+            label="Fuente o evidencia del resultado *"
+            variant="outlined"
+            rows="2"
+            placeholder="Ej: https://... o descripción del resultado"
+            class="mt-3"
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-btn variant="text" @click="dialogProponer = false">Cancelar</v-btn>
+          <v-spacer />
+          <v-btn
+            color="warning"
+            :loading="loadingProponer"
+            :disabled="!!mensajeProponer"
+            @click="proponer"
+          >
+            Proponer
           </v-btn>
         </v-card-actions>
       </v-card>

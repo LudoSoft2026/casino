@@ -9,7 +9,7 @@ export const proponer = async (req: Request, res: Response) => {
     const creadorId = req.usuario!.id;
     const result = await proponerResultado(creadorId, req.body);
 
-    if (result.p_resultado_id) {
+    if (!result.p_resultado_id) {
         res.status(400).json({ mensaje: result.p_mensaje });
         return;
     }
