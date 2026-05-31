@@ -12,6 +12,7 @@ import documentosRoutes from './modules/documentos/documentos.routes';
 import { errorMiddleware } from './middlewares/error.middleware';
 import usuariosRoutes from './modules/usuarios/usuarios.routes';
 import categoriasRoutes from './modules/categorias/categorias.routes'
+import rankingRoutes from './modules/ranking/ranking.routes'
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use('/api/documentos',      documentosRoutes);
 app.use('/uploads', express.static(path.join(__dirname, '../src/config/uploads')))
 app.use('/api/usuarios', usuariosRoutes)
 app.use('/api/categorias', categoriasRoutes)
+app.use('/api/ranking', rankingRoutes)
 
 // Health check
 app.get('/health', (_req, res) => {

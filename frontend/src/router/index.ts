@@ -39,16 +39,22 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
-    path: '/wallet',
-    name: 'wallet',
-    component: () => import('@/views/WalletView.vue'),
-    meta: { requiresAuth: true },
+      path: '/wallet',
+      name: 'wallet',
+      component: () => import('@/views/WalletView.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/admin',
       name: 'admin',
       component: () => import('@/views/AdminView.vue'),
       meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: '/ranking',
+      name: 'ranking',
+      component: () => import('@/views/RankingView.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/perfil',
