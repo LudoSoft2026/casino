@@ -1,0 +1,12 @@
+# Ignorar documentación
+README.md
+*.md
+
+# Ignorar control de versiones
+.git
+.gitignore
+
+# Ignorar archivos locales pesados (¡Súper importante!)
+node_modules
+postgres_data
+.env
