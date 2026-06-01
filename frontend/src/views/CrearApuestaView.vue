@@ -67,14 +67,14 @@ const crear = async () => {
   loading.value = true
 
   const result = await apuestasStore.crear({
-    titulo:             form.value.titulo,
-    descripcion:        form.value.descripcion,
-    opciones:           opciones.value.map(o => o.descripcion),
-    probabilidades:     opciones.value.map(o => Number(o.probabilidad)),
-    monto_minimo:       form.value.monto_minimo,
-    monto_maximo:       form.value.monto_maximo,
-    fecha_finalizacion: new Date(new Date(form.value.fecha_finalizacion).getTime() - (7 * 60 * 60 * 1000)).toISOString(),
-  })
+  titulo:             form.value.titulo,
+  descripcion:        form.value.descripcion,
+  opciones:           opciones.value.map(o => o.descripcion),
+  probabilidades:     opciones.value.map(o => Number(o.probabilidad)),
+  monto_minimo:       form.value.monto_minimo,
+  monto_maximo:       form.value.monto_maximo,
+  fecha_finalizacion: new Date(form.value.fecha_finalizacion).toISOString(),
+})
 
   loading.value = false
 
