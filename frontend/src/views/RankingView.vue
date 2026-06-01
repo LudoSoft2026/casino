@@ -152,7 +152,7 @@ onMounted(async () => {
 
       <!-- Última actualización -->
       <div class="text-caption text-medium-emphasis text-center mt-4">
-        Última actualización: {{ new Date(ranking[0]?.ultima_actualizacion).toLocaleString() }}
+        Última actualización: {{ ranking[0]?.ultima_actualizacion ? new Date(ranking[0].ultima_actualizacion).toLocaleString() : '' }}
       </div>
     </div>
 

@@ -709,23 +709,15 @@ onMounted(async () => {
         />
       </v-col>
       <v-col cols="12" md="2">
-        <v-select
-          v-model="iconoCategoria"
-          :items="iconosDisponibles"
-          label="Icono"
-          variant="outlined"
-          density="compact"
-          hide-details
-        >
-          <template #item="{ item, props }">
-            <v-list-item v-bind="props">
-              <template #prepend>
-                <v-icon>{{ item.value }}</v-icon>
-              </template>
-            </v-list-item>
-          </template>
-        </v-select>
-      </v-col>
+  <v-select
+    v-model="iconoCategoria"
+    :items="iconosDisponibles"
+    label="Icono"
+    variant="outlined"
+    density="compact"
+    hide-details
+  />
+</v-col>
       <v-col cols="12" md="2">
         <v-btn block color="teal" :loading="loadingCategoria" @click="crearCategoria">
           <v-icon start>mdi-plus</v-icon>
