@@ -422,11 +422,11 @@ onBeforeRouteUpdate((to) => {
 })
 
 const urlArchivo = (ruta: string) => {
-  if (ruta.startsWith('http')) {
+  if (ruta && (ruta.startsWith('http://') || ruta.startsWith('https://'))) {
     return ruta;
   }
   const nombre = ruta.split(/[\\/]/).pop();
-  return `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/uploads/${nombre}`;
+  return `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/uploads/${ruta.split(/[\\/]/).pop()}`;
 }
 
 onMounted(async () => {
