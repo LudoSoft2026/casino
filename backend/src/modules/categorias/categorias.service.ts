@@ -10,7 +10,7 @@ export const crearCategoria = async (adminId: string, nombre: string, descripcio
 
 export const listarCategorias = async () => {
   const { rows } = await pool.query(
-    `SELECT id, nombre, descripcion, icono, activa FROM categorias ORDER BY nombre`
+    `SELECT id, nombre, descripcion, icono, activa FROM categorias WHERE activa = true ORDER BY nombre`
   )
   return rows
 }

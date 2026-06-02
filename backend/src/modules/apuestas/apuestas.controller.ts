@@ -39,10 +39,14 @@ export const eliminar = async (req: Request, res: Response) => {
   res.json({ mensaje: 'Apuesta eliminada correctamente.' })
 }
 
-export const listar = async (_req: Request, res: Response) => {
-    const apuestas = await listarApuestas();
-    res.json({ apuestas });
-};
+export const listar = async (req: Request, res: Response) => {
+  const { categoria_id, tendencia } = req.query
+  const apuestas = await listarApuestas(
+    categoria_id as string | undefined,
+    tendencia === 'true'
+  )
+  res.json({ apuestas })
+}
 
 export const obtener = async (req: Request, res: Response) => {
     const apuesta = await obtenerApuesta(String(req.params.id));

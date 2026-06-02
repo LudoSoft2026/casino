@@ -62,6 +62,7 @@ export const useApuestasStore = defineStore('apuestas', () => {
     monto_minimo: number
     monto_maximo: number | null
     fecha_finalizacion: string
+    categoria_id?: string | null
   }) => {
     const body = {
       titulo: form.titulo,
@@ -71,6 +72,7 @@ export const useApuestasStore = defineStore('apuestas', () => {
       monto_minimo: form.monto_minimo,
       fecha_finalizacion: form.fecha_finalizacion,
       ...(form.monto_maximo ? { monto_maximo: form.monto_maximo } : {}),
+      ...(form.categoria_id ? { categoria_id: form.categoria_id } : {}),
     }
 
     const res = await apiFetch('/api/apuestas', {

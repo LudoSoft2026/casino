@@ -1,10 +1,29 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useApuestasStore } from '@/stores/apuestas'
+import { apiFetch } from '@/config/api'
 
 const router        = useRouter()
 const apuestasStore = useApuestasStore()
+
+interface Categoria {
+  id:     string
+  nombre: string
+  icono:  string
+}
+
+const categorias = ref<Categoria[]>([])
+
+const cargarCategorias = async () => {
+  const res  = await apiFetch('/api/categorias')
+  const data = await res.json()
+  categorias.value = data.categorias ?? []
+}
+
+onMounted(async () => {
+  await cargarCategorias()
+})
 
 const form = ref({
   titulo:             '',
@@ -12,6 +31,7 @@ const form = ref({
   monto_minimo:       50,
   monto_maximo:       null as number | null,
   fecha_finalizacion: '',
+  categoria_id:       null as string | null,
 })
 
 const opciones = ref([
@@ -73,7 +93,8 @@ const crear = async () => {
     probabilidades:     opciones.value.map(o => Number(o.probabilidad)),
     monto_minimo:       form.value.monto_minimo,
     monto_maximo:       form.value.monto_maximo,
-    fecha_finalizacion: new Date(new Date(form.value.fecha_finalizacion).getTime() - (7 * 60 * 60 * 1000)).toISOString(),
+    fecha_finalizacion: new Date(form.value.fecha_finalizacion).toISOString(),
+    categoria_id:       form.value.categoria_id || null,
   })
 
   loading.value = false
@@ -119,6 +140,18 @@ const crear = async () => {
               variant="outlined"
               prepend-inner-icon="mdi-text"
               rows="3"
+              class="mb-3"
+            />
+
+            <v-select
+              v-model="form.categoria_id"
+              :items="categorias"
+              item-title="nombre"
+              item-value="id"
+              label="Categoría (opcional)"
+              variant="outlined"
+              prepend-inner-icon="mdi-tag"
+              clearable
               class="mb-3"
             />
 

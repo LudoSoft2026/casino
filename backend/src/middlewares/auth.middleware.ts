@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { ENV } from '../config/env';
 import { pool } from '../config/db';
 
-export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
+export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -57,4 +57,4 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     }
 }
 
-export const authMiddleware = authenticateToken
+export const authenticateToken = authMiddleware

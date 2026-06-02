@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { apiFetch } from '@/config/api'
+import { useRoute, onBeforeRouteUpdate } from 'vue-router'
 
 interface Documento {
   documento_id: string
@@ -87,6 +88,9 @@ const comentarioValidacion = ref('')
 const usuariosParticipaciones = ref<UsuarioGrupo[]>([])
 const loadingParticipaciones  = ref(false)
 
+const route = useRoute()
+const tabActiva = ref(route.query.tab as string || 'documentos')
+
 const apuestasActivas  = ref<ApuestaActiva[]>([])
 const loadingActivas   = ref(false)
 const mensajeEliminar  = ref('')
@@ -109,6 +113,13 @@ const motivoSaldo  = ref('')
 const mensajeSaldo = ref('')
 const errorSaldo   = ref('')
 const loadingSaldo = ref(false)
+const dialogImagen    = ref(false)
+const imagenUrl       = ref('')
+
+const verDocumento = (ruta: string) => {
+  imagenUrl.value    = urlArchivo(ruta)
+  dialogImagen.value = true
+}
 
 const cargarDocumentos = async () => {
   loadingDocs.value = true
@@ -404,8 +415,14 @@ const colorEstado = (estado: string) => {
   return 'info'
 }
 
+onBeforeRouteUpdate((to) => {
+  if (to.query.tab) {
+    tabActiva.value = to.query.tab as string
+  }
+})
+
 const urlArchivo = (ruta: string) => {
-  const nombre = ruta.split('\\').pop() ?? ruta.split('/').pop()
+  const nombre = ruta.split(/[\\/]/).pop()
   return `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/uploads/${nombre}`
 }
 
@@ -418,355 +435,315 @@ onMounted(async () => {
   await cargarCategorias()
 })
 </script>
-
 <template>
   <v-container class="py-6">
-    <div class="text-h5 font-weight-bold mb-6">
+    <div class="text-h5 font-weight-bold mb-4">
       <v-icon color="primary" class="mr-2">mdi-shield-crown</v-icon>
       Panel de Administración
     </div>
 
-    <!-- Documentos pendientes -->
-    <v-card elevation="4" rounded="lg" class="mb-6">
-      <v-card-title class="pa-4">
-        <v-icon color="warning" class="mr-2">mdi-card-account-details</v-icon>
-        Documentos pendientes
-        <v-chip class="ml-2" size="small" color="warning">{{ documentos.length }}</v-chip>
-      </v-card-title>
-      <v-card-text>
-        <v-alert v-if="mensajeDoc" type="success" variant="tonal" class="mb-4" density="compact">
-          {{ mensajeDoc }}
-        </v-alert>
-        <v-alert v-if="documentos.length === 0" type="info" variant="tonal">
-          No hay documentos pendientes.
-        </v-alert>
-        <v-table v-else>
-          <thead>
-            <tr>
-              <th>Usuario</th>
-              <th>Correo</th>
-              <th>Tipo</th>
-              <th>Número</th>
-              <th>Fecha</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="doc in documentos" :key="doc.documento_id">
-              <td>{{ doc.nombre_completo }}</td>
-              <td>{{ doc.correo }}</td>
-              <td>{{ doc.tipo_documento }}</td>
-              <td>{{ doc.numero_documento }}</td>
-              <td>{{ new Date(doc.fecha_subida).toLocaleDateString() }}</td>
-              <td>
-                <v-btn color="info" size="small" class="mr-2" :href="urlArchivo(doc.ruta_archivo)" target="_blank">
-                  <v-icon>mdi-eye</v-icon>
-                </v-btn>
-                <v-btn color="success" size="small" class="mr-2" @click="aprobarDocumento(doc.documento_id)">
-                  Aprobar
-                </v-btn>
-                <v-btn color="error" size="small" @click="abrirDialogoRechazo(doc.documento_id)">
-                  Rechazar
-                </v-btn>
-              </td>
-            </tr>
-          </tbody>
-        </v-table>
-      </v-card-text>
-    </v-card>
+    <!-- Tabs de navegación -->
+    <v-tabs v-model="tabActiva" color="primary" class="mb-6">
+      <v-tab value="documentos">
+        <v-icon start>mdi-card-account-details</v-icon>
+        Documentos
+        <v-chip v-if="documentos.length > 0" class="ml-2" size="x-small" color="warning">{{ documentos.length }}</v-chip>
+      </v-tab>
+      <v-tab value="apuestas">
+        <v-icon start>mdi-cards-playing</v-icon>
+        Apuestas
+      </v-tab>
+      <v-tab value="usuarios">
+        <v-icon start>mdi-account-cog</v-icon>
+        Usuarios
+      </v-tab>
+      <v-tab value="historial">
+        <v-icon start>mdi-history</v-icon>
+        Historial
+      </v-tab>
+      <v-tab value="categorias">
+        <v-icon start>mdi-tag-multiple</v-icon>
+        Categorías
+      </v-tab>
+    </v-tabs>
 
-    <!-- Apuestas cerradas -->
-    <v-card elevation="4" rounded="lg" class="mb-6">
-      <v-card-title class="pa-4">
-        <v-icon color="error" class="mr-2">mdi-lock</v-icon>
-        Apuestas cerradas — declarar ganador
-        <v-chip class="ml-2" size="small" color="error">{{ apuestasCerradas.length }}</v-chip>
-      </v-card-title>
-      <v-card-text>
-        <v-alert v-if="apuestasCerradas.length === 0" type="info" variant="tonal">
-          No hay apuestas cerradas pendientes de resultado.
-        </v-alert>
-        <v-table v-else>
-          <thead>
-            <tr>
-              <th>Apuesta</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="apuesta in apuestasCerradas" :key="apuesta.id">
-              <td>{{ apuesta.titulo }}</td>
-              <td>
-                <v-chip :color="apuesta.estado === 'en_revision' ? 'warning' : 'error'" size="small">
-                  <v-icon start>{{ apuesta.estado === 'en_revision' ? 'mdi-flag-checkered' : 'mdi-lock' }}</v-icon>
-                  {{ apuesta.estado === 'en_revision' ? 'Resultado propuesto' : 'Sin resultado' }}
-                </v-chip>
-              </td>
-              <td>
-                <v-btn color="warning" size="small" @click="abrirDialogoConfirmar(apuesta)">
-                  <v-icon start>mdi-flag-checkered</v-icon>
-                  Declarar ganador
-                </v-btn>
-              </td>
-            </tr>
-          </tbody>
-        </v-table>
-      </v-card-text>
-    </v-card>
+    <v-tabs-window v-model="tabActiva">
 
-    <!-- Apuestas activas -->
-    <v-card elevation="4" rounded="lg" class="mb-6">
-      <v-card-title class="pa-4">
-        <v-icon color="success" class="mr-2">mdi-cards-playing</v-icon>
-        Apuestas activas
-        <v-chip class="ml-2" size="small" color="success">{{ apuestasActivas.length }}</v-chip>
-      </v-card-title>
-      <v-card-text>
-        <v-alert v-if="mensajeEliminar" type="success" variant="tonal" class="mb-4" density="compact">
-          {{ mensajeEliminar }}
-        </v-alert>
-        <v-alert v-if="apuestasActivas.length === 0" type="info" variant="tonal">
-          No hay apuestas activas.
-        </v-alert>
-        <v-table v-else>
-          <thead>
-            <tr>
-              <th>Apuesta</th>
-              <th>Creador</th>
-              <th>Participantes</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="apuesta in apuestasActivas" :key="apuesta.id">
-              <td>{{ apuesta.titulo }}</td>
-              <td>{{ apuesta.creador_alias }}</td>
-              <td>{{ apuesta.total_participantes }}</td>
-              <td>
-                <v-btn color="error" size="small" @click="eliminarApuesta(apuesta.id)">
-                  <v-icon start>mdi-delete</v-icon>
-                  Eliminar
-                </v-btn>
-              </td>
-            </tr>
-          </tbody>
-        </v-table>
-      </v-card-text>
-    </v-card>
+      <!-- Tab Documentos -->
+      <v-tabs-window-item value="documentos">
+        <v-card elevation="4" rounded="lg">
+          <v-card-title class="pa-4">
+            <v-icon color="warning" class="mr-2">mdi-card-account-details</v-icon>
+            Documentos pendientes
+            <v-chip class="ml-2" size="small" color="warning">{{ documentos.length }}</v-chip>
+          </v-card-title>
+          <v-card-text>
+            <v-alert v-if="mensajeDoc" type="success" variant="tonal" class="mb-4" density="compact">{{ mensajeDoc }}</v-alert>
+            <v-alert v-if="documentos.length === 0" type="info" variant="tonal">No hay documentos pendientes.</v-alert>
+            <v-table v-else>
+              <thead>
+                <tr>
+                  <th>Usuario</th><th>Correo</th><th>Tipo</th><th>Número</th><th>Fecha</th><th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="doc in documentos" :key="doc.documento_id">
+                  <td>{{ doc.nombre_completo }}</td>
+                  <td>{{ doc.correo }}</td>
+                  <td>{{ doc.tipo_documento }}</td>
+                  <td>{{ doc.numero_documento }}</td>
+                  <td>{{ new Date(doc.fecha_subida).toLocaleDateString() }}</td>
+                  <td>
+                    <v-btn color="info" size="small" class="mr-2" @click="verDocumento(doc.ruta_archivo)">
+                      <v-icon>mdi-eye</v-icon>
+                    </v-btn>
+                    <v-btn color="success" size="small" class="mr-2" @click="aprobarDocumento(doc.documento_id)">Aprobar</v-btn>
+                    <v-btn color="error" size="small" @click="abrirDialogoRechazo(doc.documento_id)">Rechazar</v-btn>
+                  </td>
+                </tr>
+              </tbody>
+            </v-table>
+          </v-card-text>
+        </v-card>
+      </v-tabs-window-item>
 
-    <!-- Gestión de usuarios -->
-    <v-card elevation="4" rounded="lg" class="mb-6">
-      <v-card-title class="pa-4">
-        <v-icon color="purple" class="mr-2">mdi-account-cog</v-icon>
-        Gestión de usuarios
-        <v-chip class="ml-2" size="small" color="purple">{{ usuarios.length }}</v-chip>
-      </v-card-title>
-      <v-card-text>
-        <v-progress-circular v-if="loadingUsuarios" indeterminate color="primary" />
-        <v-alert v-else-if="usuarios.length === 0" type="info" variant="tonal">
-          No hay usuarios registrados.
-        </v-alert>
-        <v-table v-else>
-          <thead>
-            <tr>
-              <th>Alias</th>
-              <th>Correo</th>
-              <th>Estado</th>
-              <th>Registro</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="usuario in usuarios" :key="usuario.id">
-              <td>{{ usuario.alias }}</td>
-              <td>{{ usuario.correo }}</td>
-              <td>
-                <v-chip :color="colorEstado(usuario.estado)" size="small">
-                  {{ usuario.estado }}
-                </v-chip>
-              </td>
-              <td>{{ new Date(usuario.fecha_registro).toLocaleDateString() }}</td>
-              <td>
-                <v-btn color="warning" size="small" class="mr-1" @click="abrirDialogoEstado(usuario)">
-                  <v-icon start>mdi-account-edit</v-icon>
-                  Gestionar
-                </v-btn>
-                <v-btn color="success" size="small" class="mr-1" @click="abrirDialogoSaldo(usuario, 'abonar')">
-                  <v-icon start>mdi-plus-circle</v-icon>
-                  Abonar
-                </v-btn>
-                <v-btn color="error" size="small" @click="abrirDialogoSaldo(usuario, 'deducir')">
-                  <v-icon start>mdi-minus-circle</v-icon>
-                  Deducir
-                </v-btn>
-              </td>
-            </tr>
-          </tbody>
-        </v-table>
-      </v-card-text>
-    </v-card>
-
-    <!-- Historial de participaciones por usuario -->
-    <v-card elevation="4" rounded="lg" class="mb-6">
-      <v-card-title class="pa-4">
-        <v-icon color="info" class="mr-2">mdi-account-group</v-icon>
-        Historial de participaciones por usuario
-      </v-card-title>
-      <v-card-text>
-        <v-progress-circular v-if="loadingParticipaciones" indeterminate color="primary" />
-        <v-alert v-else-if="usuariosParticipaciones.length === 0" type="info" variant="tonal">
-          No hay participaciones registradas.
-        </v-alert>
-        <v-expansion-panels v-else>
-          <v-expansion-panel v-for="usuario in usuariosParticipaciones" :key="usuario.alias">
-            <v-expansion-panel-title>
-              <v-icon class="mr-2">mdi-account</v-icon>
-              {{ usuario.alias }}
-              <v-chip class="ml-2" size="small" color="info">
-                {{ usuario.meses.reduce((acc: number, m: MesGrupo) => acc + m.participaciones.length, 0) }} apuestas
-              </v-chip>
-            </v-expansion-panel-title>
-            <v-expansion-panel-text>
-              <v-expansion-panels>
-                <v-expansion-panel v-for="mes in usuario.meses" :key="mes.mes">
-                  <v-expansion-panel-title>
-                    <v-icon class="mr-2">mdi-calendar</v-icon>
-                    {{ mes.mes }}
-                    <v-chip class="ml-2" size="small" color="secondary">
-                      {{ mes.participaciones.length }} apuestas
+      <!-- Tab Apuestas -->
+      <v-tabs-window-item value="apuestas">
+        <!-- Apuestas cerradas -->
+        <v-card elevation="4" rounded="lg" class="mb-6">
+          <v-card-title class="pa-4">
+            <v-icon color="error" class="mr-2">mdi-lock</v-icon>
+            Apuestas cerradas — declarar ganador
+            <v-chip class="ml-2" size="small" color="error">{{ apuestasCerradas.length }}</v-chip>
+          </v-card-title>
+          <v-card-text>
+            <v-alert v-if="apuestasCerradas.length === 0" type="info" variant="tonal">No hay apuestas cerradas pendientes.</v-alert>
+            <v-table v-else>
+              <thead>
+                <tr><th>Apuesta</th><th>Estado</th><th>Acciones</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="apuesta in apuestasCerradas" :key="apuesta.id">
+                  <td>{{ apuesta.titulo }}</td>
+                  <td>
+                    <v-chip :color="apuesta.estado === 'en_revision' ? 'warning' : 'error'" size="small">
+                      <v-icon start>{{ apuesta.estado === 'en_revision' ? 'mdi-flag-checkered' : 'mdi-lock' }}</v-icon>
+                      {{ apuesta.estado === 'en_revision' ? 'Resultado propuesto' : 'Sin resultado' }}
                     </v-chip>
-                  </v-expansion-panel-title>
-                  <v-expansion-panel-text>
-                    <v-table density="compact">
-                      <thead>
-                        <tr>
-                          <th>Apuesta</th>
-                          <th>Opción</th>
-                          <th>Monto</th>
-                          <th>Ganancia proy.</th>
-                          <th>Ganancia</th>
-                          <th>Estado</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr v-for="p in mes.participaciones" :key="p.id">
-                          <td>{{ p.apuesta_titulo }}</td>
-                          <td>{{ p.opcion_elegida }}</td>
-                          <td>${{ Number(p.monto).toFixed(2) }}</td>
-                          <td>${{ Number(p.ganancia_proyectada).toFixed(2) }}</td>
-                          <td>{{ p.ganancia ? '$' + Number(p.ganancia).toFixed(2) : '-' }}</td>
-                          <td>
-                            <v-chip size="small"
-                              :color="p.estado === 'ganadora' ? 'success' : p.estado === 'perdedora' ? 'error' : 'info'">
-                              {{ p.estado }}
-                            </v-chip>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </v-table>
-                  </v-expansion-panel-text>
-                </v-expansion-panel>
-              </v-expansion-panels>
-            </v-expansion-panel-text>
-          </v-expansion-panel>
-        </v-expansion-panels>
-      </v-card-text>
-    </v-card>
+                  </td>
+                  <td>
+                    <v-btn color="warning" size="small" @click="abrirDialogoConfirmar(apuesta)">
+                      <v-icon start>mdi-flag-checkered</v-icon>
+                      Declarar ganador
+                    </v-btn>
+                  </td>
+                </tr>
+              </tbody>
+            </v-table>
+          </v-card-text>
+        </v-card>
 
-    <!-- Gestión de categorías -->
-<v-card elevation="4" rounded="lg" class="mb-6">
-  <v-card-title class="pa-4">
-    <v-icon color="teal" class="mr-2">mdi-tag-multiple</v-icon>
-    Gestión de categorías
-    <v-chip class="ml-2" size="small" color="teal">{{ categorias.length }}</v-chip>
-  </v-card-title>
-  <v-card-text>
-    <v-alert v-if="mensajeCategoria" type="success" variant="tonal" class="mb-4" density="compact">
-      {{ mensajeCategoria }}
-    </v-alert>
-    <v-alert v-if="errorCategoria" type="error" variant="tonal" class="mb-4" density="compact">
-      {{ errorCategoria }}
-    </v-alert>
+        <!-- Apuestas activas -->
+        <v-card elevation="4" rounded="lg">
+          <v-card-title class="pa-4">
+            <v-icon color="success" class="mr-2">mdi-cards-playing</v-icon>
+            Apuestas activas
+            <v-chip class="ml-2" size="small" color="success">{{ apuestasActivas.length }}</v-chip>
+          </v-card-title>
+          <v-card-text>
+            <v-alert v-if="mensajeEliminar" type="success" variant="tonal" class="mb-4" density="compact">{{ mensajeEliminar }}</v-alert>
+            <v-alert v-if="apuestasActivas.length === 0" type="info" variant="tonal">No hay apuestas activas.</v-alert>
+            <v-table v-else>
+              <thead>
+                <tr><th>Apuesta</th><th>Creador</th><th>Participantes</th><th>Acciones</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="apuesta in apuestasActivas" :key="apuesta.id">
+                  <td>{{ apuesta.titulo }}</td>
+                  <td>{{ apuesta.creador_alias }}</td>
+                  <td>{{ apuesta.total_participantes }}</td>
+                  <td>
+                    <v-btn color="error" size="small" @click="eliminarApuesta(apuesta.id)">
+                      <v-icon start>mdi-delete</v-icon>Eliminar
+                    </v-btn>
+                  </td>
+                </tr>
+              </tbody>
+            </v-table>
+          </v-card-text>
+        </v-card>
+      </v-tabs-window-item>
 
-    <v-row class="mb-4">
-      <v-col cols="12" md="4">
-        <v-text-field
-          v-model="nombreCategoria"
-          label="Nombre *"
-          variant="outlined"
-          density="compact"
-          hide-details
-        />
-      </v-col>
-      <v-col cols="12" md="4">
-        <v-text-field
-          v-model="descripcionCategoria"
-          label="Descripción"
-          variant="outlined"
-          density="compact"
-          hide-details
-        />
-      </v-col>
-      <v-col cols="12" md="2">
-  <v-select
-    v-model="iconoCategoria"
-    :items="iconosDisponibles"
-    label="Icono"
-    variant="outlined"
-    density="compact"
-    hide-details
-  />
-</v-col>
-      <v-col cols="12" md="2">
-        <v-btn block color="teal" :loading="loadingCategoria" @click="crearCategoria">
-          <v-icon start>mdi-plus</v-icon>
-          Crear
-        </v-btn>
-      </v-col>
-    </v-row>
+      <!-- Tab Usuarios -->
+      <v-tabs-window-item value="usuarios">
+        <v-card elevation="4" rounded="lg">
+          <v-card-title class="pa-4">
+            <v-icon color="purple" class="mr-2">mdi-account-cog</v-icon>
+            Gestión de usuarios
+            <v-chip class="ml-2" size="small" color="purple">{{ usuarios.length }}</v-chip>
+          </v-card-title>
+          <v-card-text>
+            <v-progress-circular v-if="loadingUsuarios" indeterminate color="primary" />
+            <v-alert v-else-if="usuarios.length === 0" type="info" variant="tonal">No hay usuarios registrados.</v-alert>
+            <v-table v-else>
+              <thead>
+                <tr><th>Alias</th><th>Correo</th><th>Estado</th><th>Registro</th><th>Acciones</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="usuario in usuarios" :key="usuario.id">
+                  <td>{{ usuario.alias }}</td>
+                  <td>{{ usuario.correo }}</td>
+                  <td>
+                    <v-chip :color="colorEstado(usuario.estado)" size="small">{{ usuario.estado }}</v-chip>
+                  </td>
+                  <td>{{ new Date(usuario.fecha_registro).toLocaleDateString() }}</td>
+                  <td>
+                    <v-btn color="warning" size="small" class="mr-1" @click="abrirDialogoEstado(usuario)">
+                      <v-icon start>mdi-account-edit</v-icon>Gestionar
+                    </v-btn>
+                    <v-btn color="success" size="small" class="mr-1" @click="abrirDialogoSaldo(usuario, 'abonar')">
+                      <v-icon start>mdi-plus-circle</v-icon>Abonar
+                    </v-btn>
+                    <v-btn color="error" size="small" @click="abrirDialogoSaldo(usuario, 'deducir')">
+                      <v-icon start>mdi-minus-circle</v-icon>Deducir
+                    </v-btn>
+                  </td>
+                </tr>
+              </tbody>
+            </v-table>
+          </v-card-text>
+        </v-card>
+      </v-tabs-window-item>
 
-    <v-table v-if="categorias.length > 0">
-      <thead>
-        <tr>
-          <th>Icono</th>
-          <th>Nombre</th>
-          <th>Descripción</th>
-          <th>Estado</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="cat in categorias" :key="cat.id">
-          <td><v-icon>{{ cat.icono }}</v-icon></td>
-          <td>{{ cat.nombre }}</td>
-          <td>{{ cat.descripcion }}</td>
-          <td>
-            <v-chip :color="cat.activa ? 'success' : 'error'" size="small">
-              {{ cat.activa ? 'Activa' : 'Inactiva' }}
-            </v-chip>
-          </td>
-          <td>
-            <v-btn
-              :color="cat.activa ? 'warning' : 'success'"
-              size="small"
-              class="mr-1"
-              @click="toggleCategoria(cat.id)"
-            >
-              {{ cat.activa ? 'Desactivar' : 'Activar' }}
-            </v-btn>
-            <v-btn color="error" size="small" @click="eliminarCat(cat.id)">
-              <v-icon>mdi-delete</v-icon>
-            </v-btn>
-          </td>
-        </tr>
-      </tbody>
-    </v-table>
-    <v-alert v-else type="info" variant="tonal">
-      No hay categorías registradas.
-    </v-alert>
-  </v-card-text>
-</v-card>
+      <!-- Tab Historial -->
+      <v-tabs-window-item value="historial">
+        <v-card elevation="4" rounded="lg">
+          <v-card-title class="pa-4">
+            <v-icon color="info" class="mr-2">mdi-account-group</v-icon>
+            Historial de participaciones por usuario
+          </v-card-title>
+          <v-card-text>
+            <v-progress-circular v-if="loadingParticipaciones" indeterminate color="primary" />
+            <v-alert v-else-if="usuariosParticipaciones.length === 0" type="info" variant="tonal">No hay participaciones registradas.</v-alert>
+            <v-expansion-panels v-else>
+              <v-expansion-panel v-for="usuario in usuariosParticipaciones" :key="usuario.alias">
+                <v-expansion-panel-title>
+                  <v-icon class="mr-2">mdi-account</v-icon>
+                  {{ usuario.alias }}
+                  <v-chip class="ml-2" size="small" color="info">
+                    {{ usuario.meses.reduce((acc: number, m: MesGrupo) => acc + m.participaciones.length, 0) }} apuestas
+                  </v-chip>
+                </v-expansion-panel-title>
+                <v-expansion-panel-text>
+                  <v-expansion-panels>
+                    <v-expansion-panel v-for="mes in usuario.meses" :key="mes.mes">
+                      <v-expansion-panel-title>
+                        <v-icon class="mr-2">mdi-calendar</v-icon>
+                        {{ mes.mes }}
+                        <v-chip class="ml-2" size="small" color="secondary">{{ mes.participaciones.length }} apuestas</v-chip>
+                      </v-expansion-panel-title>
+                      <v-expansion-panel-text>
+                        <v-table density="compact">
+                          <thead>
+                            <tr><th>Apuesta</th><th>Opción</th><th>Monto</th><th>Ganancia proy.</th><th>Ganancia</th><th>Estado</th></tr>
+                          </thead>
+                          <tbody>
+                            <tr v-for="p in mes.participaciones" :key="p.id">
+                              <td>{{ p.apuesta_titulo }}</td>
+                              <td>{{ p.opcion_elegida }}</td>
+                              <td>${{ Number(p.monto).toFixed(2) }}</td>
+                              <td>${{ Number(p.ganancia_proyectada).toFixed(2) }}</td>
+                              <td>{{ p.ganancia ? '$' + Number(p.ganancia).toFixed(2) : '-' }}</td>
+                              <td>
+                                <v-chip size="small" :color="p.estado === 'ganadora' ? 'success' : p.estado === 'perdedora' ? 'error' : 'info'">
+                                  {{ p.estado }}
+                                </v-chip>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </v-table>
+                      </v-expansion-panel-text>
+                    </v-expansion-panel>
+                  </v-expansion-panels>
+                </v-expansion-panel-text>
+              </v-expansion-panel>
+            </v-expansion-panels>
+          </v-card-text>
+        </v-card>
+      </v-tabs-window-item>
+
+      <!-- Tab Categorías -->
+      <v-tabs-window-item value="categorias">
+        <v-card elevation="4" rounded="lg">
+          <v-card-title class="pa-4">
+            <v-icon color="teal" class="mr-2">mdi-tag-multiple</v-icon>
+            Gestión de categorías
+            <v-chip class="ml-2" size="small" color="teal">{{ categorias.length }}</v-chip>
+          </v-card-title>
+          <v-card-text>
+            <v-alert v-if="mensajeCategoria" type="success" variant="tonal" class="mb-4" density="compact">{{ mensajeCategoria }}</v-alert>
+            <v-alert v-if="errorCategoria" type="error" variant="tonal" class="mb-4" density="compact">{{ errorCategoria }}</v-alert>
+            <v-row class="mb-4">
+              <v-col cols="12" md="4">
+                <v-text-field v-model="nombreCategoria" label="Nombre *" variant="outlined" density="compact" hide-details />
+              </v-col>
+              <v-col cols="12" md="4">
+                <v-text-field v-model="descripcionCategoria" label="Descripción" variant="outlined" density="compact" hide-details />
+              </v-col>
+              <v-col cols="12" md="2">
+                <v-select v-model="iconoCategoria" :items="iconosDisponibles" label="Icono" variant="outlined" density="compact" hide-details />
+              </v-col>
+              <v-col cols="12" md="2">
+                <v-btn block color="teal" :loading="loadingCategoria" @click="crearCategoria">
+                  <v-icon start>mdi-plus</v-icon>Crear
+                </v-btn>
+              </v-col>
+            </v-row>
+            <v-table v-if="categorias.length > 0">
+              <thead>
+                <tr><th>Icono</th><th>Nombre</th><th>Descripción</th><th>Estado</th><th>Acciones</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="cat in categorias" :key="cat.id">
+                  <td><v-icon>{{ cat.icono }}</v-icon></td>
+                  <td>{{ cat.nombre }}</td>
+                  <td>{{ cat.descripcion }}</td>
+                  <td>
+                    <v-chip :color="cat.activa ? 'success' : 'error'" size="small">{{ cat.activa ? 'Activa' : 'Inactiva' }}</v-chip>
+                  </td>
+                  <td>
+                    <v-btn :color="cat.activa ? 'warning' : 'success'" size="small" class="mr-1" @click="toggleCategoria(cat.id)">
+                      {{ cat.activa ? 'Desactivar' : 'Activar' }}
+                    </v-btn>
+                    <v-btn color="error" size="small" @click="eliminarCat(cat.id)">
+                      <v-icon>mdi-delete</v-icon>
+                    </v-btn>
+                  </td>
+                </tr>
+              </tbody>
+            </v-table>
+            <v-alert v-else type="info" variant="tonal">No hay categorías registradas.</v-alert>
+          </v-card-text>
+        </v-card>
+      </v-tabs-window-item>
+
+    </v-tabs-window>
+
+    <!-- Dialog visualizar documento -->
+    <v-dialog v-model="dialogImagen" max-width="800">
+      <v-card rounded="lg">
+        <v-card-title class="pa-4">
+          <v-icon color="info" class="mr-2">mdi-file-document</v-icon>
+          Documento de identidad
+          <v-spacer />
+          <v-btn icon variant="text" @click="dialogImagen = false"><v-icon>mdi-close</v-icon></v-btn>
+        </v-card-title>
+        <v-card-text class="pa-2">
+          <v-img v-if="!imagenUrl.endsWith('.pdf')" :src="imagenUrl" max-height="600" contain />
+          <iframe v-else :src="imagenUrl" width="100%" height="600px" style="border: none;" />
+        </v-card-text>
+      </v-card>
+    </v-dialog>
 
     <!-- Dialog rechazo documento -->
     <v-dialog v-model="dialogRechazo" max-width="400">
@@ -789,32 +766,23 @@ onMounted(async () => {
         <v-card-title>Declarar ganador</v-card-title>
         <v-card-subtitle>{{ apuestaConfirmar.titulo }}</v-card-subtitle>
         <v-card-text>
-          <v-alert v-if="mensajeConfirmar" type="success" variant="tonal" class="mb-4">
-            {{ mensajeConfirmar }}
-          </v-alert>
-          <v-alert v-if="errorConfirmar" type="error" variant="tonal" class="mb-4">
-            {{ errorConfirmar }}
-          </v-alert>
+          <v-alert v-if="mensajeConfirmar" type="success" variant="tonal" class="mb-4">{{ mensajeConfirmar }}</v-alert>
+          <v-alert v-if="errorConfirmar" type="error" variant="tonal" class="mb-4">{{ errorConfirmar }}</v-alert>
           <v-alert v-if="apuestaConfirmar.evidencia" type="info" variant="tonal" class="mb-4">
             <div class="font-weight-bold">Evidencia del creador:</div>
             <div>{{ apuestaConfirmar.evidencia }}</div>
-            <div class="text-caption mt-1">
-              Propuesto: {{ new Date(apuestaConfirmar.fecha_propuesta!).toLocaleString() }}
-            </div>
+            <div class="text-caption mt-1">Propuesto: {{ new Date(apuestaConfirmar.fecha_propuesta!).toLocaleString() }}</div>
           </v-alert>
           <div class="text-subtitle-2 mb-2">Selecciona la opción ganadora:</div>
           <v-radio-group v-model="opcionGanadora">
-            <v-radio v-for="opcion in apuestaConfirmar.opciones" :key="opcion.id"
-              :label="opcion.descripcion" :value="opcion.id" />
+            <v-radio v-for="opcion in apuestaConfirmar.opciones" :key="opcion.id" :label="opcion.descripcion" :value="opcion.id" />
           </v-radio-group>
-          <v-textarea v-model="comentarioValidacion" label="Comentarios de validación (opcional)"
-            variant="outlined" rows="2" class="mt-3" />
+          <v-textarea v-model="comentarioValidacion" label="Comentarios de validación (opcional)" variant="outlined" rows="2" class="mt-3" />
         </v-card-text>
         <v-card-actions>
           <v-btn variant="text" @click="dialogConfirmar = false">Cancelar</v-btn>
           <v-spacer />
-          <v-btn color="warning" :loading="loadingConfirmar" :disabled="!!mensajeConfirmar"
-            @click="confirmarApuestaCerrada">
+          <v-btn color="warning" :loading="loadingConfirmar" :disabled="!!mensajeConfirmar" @click="confirmarApuestaCerrada">
             Confirmar ganador
           </v-btn>
         </v-card-actions>
@@ -827,26 +795,20 @@ onMounted(async () => {
         <v-card-title>Gestionar usuario</v-card-title>
         <v-card-subtitle>{{ usuarioSeleccionado.alias }}</v-card-subtitle>
         <v-card-text>
-          <v-alert v-if="mensajeEstado" type="success" variant="tonal" class="mb-4">
-            {{ mensajeEstado }}
-          </v-alert>
-          <v-alert v-if="errorEstado" type="error" variant="tonal" class="mb-4">
-            {{ errorEstado }}
-          </v-alert>
+          <v-alert v-if="mensajeEstado" type="success" variant="tonal" class="mb-4">{{ mensajeEstado }}</v-alert>
+          <v-alert v-if="errorEstado" type="error" variant="tonal" class="mb-4">{{ errorEstado }}</v-alert>
           <div class="text-subtitle-2 mb-2">Selecciona la acción:</div>
           <v-radio-group v-model="accionEstado" class="mb-3">
-            <v-radio label="Activar"   value="activar"   color="success" />
+            <v-radio label="Activar" value="activar" color="success" />
             <v-radio label="Suspender" value="suspender" color="warning" />
-            <v-radio label="Bloquear"  value="bloquear"  color="error" />
+            <v-radio label="Bloquear" value="bloquear" color="error" />
           </v-radio-group>
           <v-textarea v-model="motivoEstado" label="Motivo *" variant="outlined" rows="2" />
         </v-card-text>
         <v-card-actions>
           <v-btn variant="text" @click="dialogEstado = false">Cancelar</v-btn>
           <v-spacer />
-          <v-btn color="warning" :loading="loadingEstado" :disabled="!!mensajeEstado" @click="cambiarEstado">
-            Confirmar
-          </v-btn>
+          <v-btn color="warning" :loading="loadingEstado" :disabled="!!mensajeEstado" @click="cambiarEstado">Confirmar</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -854,42 +816,19 @@ onMounted(async () => {
     <!-- Dialog gestión saldo -->
     <v-dialog v-model="dialogSaldo" max-width="500">
       <v-card v-if="usuarioSaldo" rounded="lg">
-        <v-card-title>
-          {{ accionSaldo === 'abonar' ? 'Abonar saldo' : 'Deducir saldo' }}
-        </v-card-title>
+        <v-card-title>{{ accionSaldo === 'abonar' ? 'Abonar saldo' : 'Deducir saldo' }}</v-card-title>
         <v-card-subtitle>{{ usuarioSaldo.alias }}</v-card-subtitle>
         <v-card-text>
-          <v-alert v-if="mensajeSaldo" type="success" variant="tonal" class="mb-4">
-            {{ mensajeSaldo }}
-          </v-alert>
-          <v-alert v-if="errorSaldo" type="error" variant="tonal" class="mb-4">
-            {{ errorSaldo }}
-          </v-alert>
-          <v-text-field
-            v-model.number="montoSaldo"
-            label="Monto *"
-            type="number"
-            variant="outlined"
-            prepend-inner-icon="mdi-cash"
-            class="mb-3"
-          />
-          <v-textarea
-            v-model="motivoSaldo"
-            label="Motivo *"
-            variant="outlined"
-            rows="2"
-            :placeholder="accionSaldo === 'abonar' ? 'Ej. Bono de bienvenida, Premio de torneo' : 'Ej. Corrección de error, Penalización'"
-          />
+          <v-alert v-if="mensajeSaldo" type="success" variant="tonal" class="mb-4">{{ mensajeSaldo }}</v-alert>
+          <v-alert v-if="errorSaldo" type="error" variant="tonal" class="mb-4">{{ errorSaldo }}</v-alert>
+          <v-text-field v-model.number="montoSaldo" label="Monto *" type="number" variant="outlined" prepend-inner-icon="mdi-cash" class="mb-3" />
+          <v-textarea v-model="motivoSaldo" label="Motivo *" variant="outlined" rows="2"
+            :placeholder="accionSaldo === 'abonar' ? 'Ej. Bono de bienvenida, Premio de torneo' : 'Ej. Corrección de error, Penalización'" />
         </v-card-text>
         <v-card-actions>
           <v-btn variant="text" @click="dialogSaldo = false">Cancelar</v-btn>
           <v-spacer />
-          <v-btn
-            :color="accionSaldo === 'abonar' ? 'success' : 'error'"
-            :loading="loadingSaldo"
-            :disabled="!!mensajeSaldo"
-            @click="gestionarSaldo"
-          >
+          <v-btn :color="accionSaldo === 'abonar' ? 'success' : 'error'" :loading="loadingSaldo" :disabled="!!mensajeSaldo" @click="gestionarSaldo">
             {{ accionSaldo === 'abonar' ? 'Abonar' : 'Deducir' }}
           </v-btn>
         </v-card-actions>

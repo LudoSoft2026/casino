@@ -1,25 +1,39 @@
 import { pool } from "../../config/db";
 import { CrearApuestaDTO } from "./apuestas.schema";
 
-export const crearApuesta = async (
-  creadorId: string,
-  data: CrearApuestaDTO,
-) => {
-  const { rows } = await pool.query(
-    `CALL SP_CREAR_APUESTA($1, $2, $3, $4, $5, $6, $7,NULL, NULL, $8)`,
-    [
-      creadorId,
-      data.titulo,
-      data.descripcion,
-      data.opciones,
-      data.probabilidades,
-      data.monto_minimo,
-      data.fecha_finalizacion,
-      data.monto_maximo || null,
-    ],
-  );
-  return rows[0] as { p_apuesta_id: string | null; p_mensaje: String };
-};
+export const crearApuesta = async (creadorId: string, data: CrearApuestaDTO) => {
+  const { rows: usuario } = await pool.query(
+    `SELECT estado FROM usuarios WHERE id = $1`,
+    [creadorId]
+  )
+  if (!usuario[0] || usuario[0].estado !== 'verificada') {
+    return { p_apuesta_id: null, p_mensaje: 'Tu cuenta debe estar verificada para crear apuestas.' }
+  }
+
+  const fechaFin = new Date(data.fecha_finalizacion)
+  if (fechaFin <= new Date()) {
+    return { p_apuesta_id: null, p_mensaje: 'La fecha de finalización debe ser posterior a la actual.' }
+  }
+
+  const { rows: apuesta } = await pool.query(
+    `INSERT INTO apuestas (creador_id, titulo, descripcion, monto_minimo, monto_maximo, fecha_finalizacion, categoria_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+    [creadorId, data.titulo.trim(), data.descripcion.trim(), data.monto_minimo, data.monto_maximo || null, data.fecha_finalizacion, data.categoria_id || null]
+  )
+  const apuestaId = apuesta[0].id
+
+  for (let i = 0; i < data.opciones.length; i++) {
+    const prob  = data.probabilidades[i]
+    const cuota = prob > 0 ? parseFloat((100 / prob).toFixed(2)) : 1
+    await pool.query(
+      `INSERT INTO opciones_apuesta (apuesta_id, descripcion, probabilidad_pct, cuota, orden)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [apuestaId, data.opciones[i].trim(), prob, cuota, i + 1]
+    )
+  }
+
+  return { p_apuesta_id: apuestaId, p_mensaje: 'Apuesta creada con éxito.' }
+}
 
 export const eliminarApuesta = async (apuestaId: string) => {
   const { rows } = await pool.query(
@@ -37,13 +51,25 @@ export const cancelarApuesta = async (usuarioId: string, apuestaId: string) => {
   return rows[0] as { p_mensaje: string };
 };
 
-export const listarApuestas = async () => {
+export const listarApuestas = async (categoriaId?: string, tendencia?: boolean) => {
   console.log("⏰ Hora del servidor:", new Date());
-  const { rows } = await pool.query(
-    `SELECT * FROM V_APUESTAS_ACTIVAS ORDER BY es_tendencia DESC, fecha_creacion DESC`,
-  );
-  return rows;
-};
+  let query = `SELECT * FROM V_APUESTAS_ACTIVAS`
+  const params: any[] = []
+
+  if (categoriaId) {
+    params.push(categoriaId)
+    query += ` WHERE categoria_id = $1`
+  }
+
+  if (tendencia) {
+    query += ` ORDER BY es_tendencia DESC, total_participantes DESC, total_apostado DESC`
+  } else {
+    query += ` ORDER BY es_tendencia DESC, fecha_creacion DESC`
+  }
+
+  const { rows } = await pool.query(query, params)
+  return rows
+}
 
 export const obtenerApuesta = async (id: string) => {
   const { rows } = await pool.query(

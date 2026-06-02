@@ -5,6 +5,35 @@ import { useAuthStore } from '@/stores/auth'
 import { apiFetch } from '@/config/api'
 import { io } from 'socket.io-client'
 
+interface Categoria {
+  id:     string
+  nombre: string
+  icono:  string
+}
+
+const categorias       = ref<Categoria[]>([])
+const filtroCategoria  = ref<string | null>(null)
+const filtroTendencia  = ref(false)
+
+const cargarCategorias = async () => {
+  const res  = await apiFetch('/api/categorias')
+  const data = await res.json()
+  categorias.value = data.categorias ?? []
+}
+
+const aplicarFiltros = async () => {
+  const params = new URLSearchParams()
+  if (filtroCategoria.value) params.append('categoria_id', filtroCategoria.value)
+  if (filtroTendencia.value) params.append('tendencia', 'true')
+
+  const res  = await apiFetch(`/api/apuestas?${params.toString()}`)
+  const data = await res.json()
+  apuestasStore.apuestas = data.apuestas ?? []
+  apuestasStore.apuestas.forEach((a: Apuesta) => {
+    contadores.value[a.id] = a.segundos_restantes
+  })
+}
+
 const apuestasStore = useApuestasStore()
 const auth          = useAuthStore()
 
@@ -36,7 +65,7 @@ let intervalo: ReturnType<typeof setInterval>
 onMounted(async () => {
   await apuestasStore.listar()
   await apuestasStore.cargarMisApuestas()
-
+  await cargarCategorias()
   apuestasStore.apuestas.forEach(a => {
     contadores.value[a.id] = a.segundos_restantes
   })
@@ -184,6 +213,34 @@ const formatearTiempo = (segundos: number) => {
       </v-col>
     </v-row>
 
+    <!-- Filtros -->
+    <v-row class="mb-4" align="center">
+      <v-col cols="12" md="5">
+        <v-select
+          v-model="filtroCategoria"
+          :items="categorias"
+          item-title="nombre"
+          item-value="id"
+          label="Filtrar por categoría"
+          variant="outlined"
+          density="compact"
+          clearable
+          hide-details
+          prepend-inner-icon="mdi-tag"
+          @update:model-value="aplicarFiltros"
+        />
+      </v-col>
+      <v-col cols="12" md="4">
+        <v-switch
+          v-model="filtroTendencia"
+          label="En tendencia 🔥"
+          color="orange"
+          hide-details
+          @update:model-value="aplicarFiltros"
+        />
+      </v-col>
+    </v-row>
+
     <v-row v-if="apuestasStore.loading" justify="center">
       <v-col cols="auto">
         <v-progress-circular indeterminate color="primary" size="64" />
@@ -193,7 +250,11 @@ const formatearTiempo = (segundos: number) => {
     <v-row v-else-if="apuestasStore.apuestas.length === 0" justify="center">
       <v-col cols="12" class="text-center">
         <v-icon size="64" color="grey">mdi-emoticon-sad-outline</v-icon>
-        <div class="text-h6 mt-2 text-medium-emphasis">No hay apuestas activas por el momento.</div>
+        <div class="text-h6 mt-2 text-medium-emphasis">
+          {{ filtroCategoria
+            ? 'Por el momento no hay apuestas activas en esta categoría. ¡Anímate a crear una!'
+            : 'No hay apuestas activas por el momento.' }}
+        </div>
       </v-col>
     </v-row>
 
@@ -382,4 +443,4 @@ const formatearTiempo = (segundos: number) => {
     </v-snackbar>
 
   </v-container>
-</template>
+</template> 
