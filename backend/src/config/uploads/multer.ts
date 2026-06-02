@@ -2,17 +2,10 @@ import { error } from "console";
 import multer from "multer";
 import path from "path";
 
-const storage = multer.diskStorage({
-    destination: (_req, _file, cb) => {
-        cb(null, 'src/config/uploads/');
-    },
-    filename: (_req, file, cb) => {
-        const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        cb(null, unique + path.extname(file.originalname));
-    }
-});
+// 🔥 CAMBIO CLAVE: Cambiamos diskStorage por memoryStorage para generar el buffer que Cloudinary necesita
+const storage = multer.memoryStorage();
 
-const fileFilter = (_req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+const fileFilter = (_req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
     const allowed = ['image/jpeg', 'image/png', 'image/pdf'];
     if (allowed.includes(file.mimetype)) {
         cb(null, true);
