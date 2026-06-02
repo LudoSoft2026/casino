@@ -32,6 +32,7 @@ services:
       DB_PASSWORD: 123
       JWT_SECRET: una_clave_secreta_muy_larga_y_segura_aqui
       JWT_EXPIRES_IN: 7d
+      TZ: America/Hermosillo
     ports:
       - "3000:3000"
     depends_on:
