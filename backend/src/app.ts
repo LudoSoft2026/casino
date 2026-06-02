@@ -18,6 +18,10 @@ const app = express();
 
 app.use(helmet())
 app.use(cors())
+app.use((req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+});
 app.use(express.json())
 
 // Rutas
