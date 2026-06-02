@@ -33,6 +33,10 @@ services:
       JWT_SECRET: una_clave_secreta_muy_larga_y_segura_aqui
       JWT_EXPIRES_IN: 7d
       TZ: America/Hermosillo
+      
+      CLOUDINARY_CLOUD_NAME: dfamo7lm9
+      CLOUDINARY_API_KEY: 176964651727779
+      CLOUDINARY_API_SECRET: c1EBXplPYCkXfpR3gJG1L0dfQrQ
     ports:
       - "3000:3000"
     depends_on:
